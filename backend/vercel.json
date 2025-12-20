@@ -8,8 +8,25 @@
     ],
     "routes": [
         {
+            "src": "/api/(.*)",
+            "methods": [
+                "OPTIONS"
+            ],
+            "dest": "api/index.py",
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With"
+            }
+        },
+        {
             "src": "/(.*)",
-            "dest": "api/index.py"
+            "dest": "api/index.py",
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With"
+            }
         }
     ]
 }
