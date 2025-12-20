@@ -1,21 +1,13 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 import os
 import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.config import get_settings
-from app.database import connect_to_mongo, close_mongo_connection
-
-# Import routes
-from app.routes import channels, videos, comments, analytics, community, tags, reports, chat
-
-settings = get_settings()
-
-# Create FastAPI app
+# Create FastAPI app first
 app = FastAPI(
     title="CreatorPulse API",
     description="API for analyzing YouTube comments with AI-powered sentiment analysis and insights",
@@ -45,34 +37,15 @@ async def preflight_handler(rest_of_path: str):
     )
 
 
-# Register routes
-app.include_router(channels.router, prefix="/api/channels", tags=["Channels"])
-app.include_router(videos.router, prefix="/api/videos", tags=["Videos"])
-app.include_router(comments.router, prefix="/api/comments", tags=["Comments"])
-app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
-app.include_router(community.router, prefix="/api/community", tags=["Community"])
-app.include_router(tags.router, prefix="/api/tags", tags=["Tags"])
-app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
-app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
-
-
-@app.on_event("startup")
-async def startup():
-    await connect_to_mongo()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    await close_mongo_connection()
-
-
+# Health check that works without database
 @app.get("/")
 async def root():
     """Root endpoint."""
     return {
         "message": "CreatorPulse API",
         "version": "1.0.0",
-        "docs": "/docs"
+        "docs": "/docs",
+        "status": "running"
     }
 
 
@@ -80,6 +53,46 @@ async def root():
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+# Now import and register routes (after app is created)
+try:
+    from app.database import connect_to_mongo, close_mongo_connection
+    from app.routes import channels, videos, comments, analytics, community, tags, reports, chat
+    
+    # Register routes
+    app.include_router(channels.router, prefix="/api/channels", tags=["Channels"])
+    app.include_router(videos.router, prefix="/api/videos", tags=["Videos"])
+    app.include_router(comments.router, prefix="/api/comments", tags=["Comments"])
+    app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
+    app.include_router(community.router, prefix="/api/community", tags=["Community"])
+    app.include_router(tags.router, prefix="/api/tags", tags=["Tags"])
+    app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
+    app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
+    
+    @app.on_event("startup")
+    async def startup():
+        try:
+            await connect_to_mongo()
+        except Exception as e:
+            print(f"Database connection error: {e}")
+    
+    @app.on_event("shutdown")
+    async def shutdown():
+        try:
+            await close_mongo_connection()
+        except Exception as e:
+            print(f"Database disconnect error: {e}")
+
+except Exception as e:
+    print(f"Import error: {e}")
+    
+    @app.get("/api/{rest_of_path:path}")
+    async def fallback_api(rest_of_path: str):
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"API initialization failed: {str(e)}"}
+        )
 
 
 # Export handler for Vercel
