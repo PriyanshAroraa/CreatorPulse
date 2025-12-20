@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 import os
 import sys
 
@@ -21,14 +22,28 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware - allow all origins for Vercel deployments
+# CORS middleware - allow all origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,  # Must be False when using "*" for origins
-    allow_methods=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+# Explicit OPTIONS handler for preflight requests
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str):
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
 
 # Register routes
 app.include_router(channels.router, prefix="/api/channels", tags=["Channels"])
