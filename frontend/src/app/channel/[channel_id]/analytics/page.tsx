@@ -227,7 +227,7 @@ export default function AnalyticsPage() {
                         </CardHeader>
                         <CardContent>
                             {trends.length > 0 ? (
-                                <div className="h-64">
+                                <div className="h-64 relative">
                                     {/* SVG Line Chart */}
                                     <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="none">
                                         {/* Grid lines */}
@@ -259,18 +259,36 @@ export default function AnalyticsPage() {
                                             strokeLinejoin="round"
                                         />
 
-                                        {/* Data points */}
+                                        {/* Data points with larger hover area */}
                                         {trends.map((day, i) => {
                                             const x = (i / (trends.length - 1)) * 800;
                                             const y = 200 - (maxTrendValue > 0 ? (day.total / maxTrendValue) * 180 : 0);
                                             return (
-                                                <g key={day.date}>
+                                                <g key={day.date} className="group cursor-pointer">
+                                                    {/* Invisible larger circle for easier hover */}
+                                                    <circle
+                                                        cx={x}
+                                                        cy={y}
+                                                        r="12"
+                                                        fill="transparent"
+                                                    />
+                                                    {/* Visible circle */}
                                                     <circle
                                                         cx={x}
                                                         cy={y}
                                                         r="4"
                                                         fill="#10b981"
-                                                        className="hover:r-6 transition-all"
+                                                        className="group-hover:r-6 transition-all"
+                                                    />
+                                                    {/* Hover ring */}
+                                                    <circle
+                                                        cx={x}
+                                                        cy={y}
+                                                        r="8"
+                                                        fill="transparent"
+                                                        stroke="#10b981"
+                                                        strokeWidth="2"
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
                                                     />
                                                     <title>{day.date}: {day.total} comments</title>
                                                 </g>
@@ -285,11 +303,16 @@ export default function AnalyticsPage() {
                                             </linearGradient>
                                         </defs>
                                     </svg>
+
+                                    {/* Legend */}
                                     <div className="mt-2 flex justify-between text-xs text-zinc-500">
                                         <span>{trends[0]?.date}</span>
                                         <span className="text-emerald-500 font-medium">Max: {maxTrendValue} comments</span>
                                         <span>{trends[trends.length - 1]?.date}</span>
                                     </div>
+
+                                    {/* Tip */}
+                                    <p className="text-xs text-zinc-600 text-center mt-1">Hover over points to see details</p>
                                 </div>
                             ) : (
                                 <p className="py-8 text-center text-muted-foreground">

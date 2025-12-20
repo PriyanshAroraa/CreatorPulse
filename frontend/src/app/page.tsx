@@ -27,12 +27,14 @@ import {
   ArrowRight,
   Zap,
   TrendingUp,
+  Trash2,
 } from 'lucide-react';
 
 export default function HomePage() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingChannel, setAddingChannel] = useState(false);
+  const [deletingChannel, setDeletingChannel] = useState<string | null>(null);
   const [channelUrl, setChannelUrl] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -79,6 +81,26 @@ export default function HomePage() {
       );
     } catch (error) {
       console.error('Failed to start sync:', error);
+    }
+  };
+
+  const handleDelete = async (channelId: string, channelName: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!confirm(`Are you sure you want to delete "${channelName}"? This will remove all associated comments and data.`)) {
+      return;
+    }
+
+    setDeletingChannel(channelId);
+    try {
+      await channelsApi.delete(channelId);
+      setChannels((prev) => prev.filter((ch) => ch.channel_id !== channelId));
+    } catch (error) {
+      console.error('Failed to delete channel:', error);
+      alert('Failed to delete channel. Please try again.');
+    } finally {
+      setDeletingChannel(null);
     }
   };
 
@@ -297,6 +319,19 @@ export default function HomePage() {
                             disabled={channel.sync_status === 'syncing'}
                           >
                             <RefreshCw className={`h-3.5 w-3.5 ${channel.sync_status === 'syncing' ? 'animate-spin' : ''}`} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
+                            onClick={(e) => handleDelete(channel.channel_id, channel.name, e)}
+                            disabled={deletingChannel === channel.channel_id}
+                          >
+                            {deletingChannel === channel.channel_id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
                           </Button>
                         </div>
                       </div>
