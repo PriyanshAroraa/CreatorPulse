@@ -45,8 +45,9 @@ try:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
     from app.database import connect_to_mongo, close_mongo_connection, get_database
-    from app.routes import channels, videos, comments, analytics, community, tags, reports, chat
+    from app.routes import channels, videos, comments, analytics, community, tags, reports, chat, auth
     
+    app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
     app.include_router(channels.router, prefix="/api/channels", tags=["Channels"])
     app.include_router(videos.router, prefix="/api/videos", tags=["Videos"])
     app.include_router(comments.router, prefix="/api/comments", tags=["Comments"])
