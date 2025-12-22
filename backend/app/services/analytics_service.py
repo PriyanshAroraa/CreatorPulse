@@ -10,6 +10,7 @@ class AnalyticsService:
     async def get_sentiment_breakdown(
         self,
         channel_id: str,
+        user_id: Optional[str] = None,
         date_from: Optional[datetime] = None,
         date_to: Optional[datetime] = None
     ) -> Dict[str, Any]:
@@ -17,6 +18,8 @@ class AnalyticsService:
         db = get_database()
         
         match_stage = {"channel_id": channel_id}
+        if user_id:
+            match_stage["user_id"] = user_id
         if date_from:
             match_stage["published_at"] = {"$gte": date_from}
         if date_to:
@@ -58,6 +61,7 @@ class AnalyticsService:
     async def get_tag_breakdown(
         self,
         channel_id: str,
+        user_id: Optional[str] = None,
         date_from: Optional[datetime] = None,
         date_to: Optional[datetime] = None
     ) -> Dict[str, int]:
@@ -65,6 +69,8 @@ class AnalyticsService:
         db = get_database()
         
         match_stage = {"channel_id": channel_id, "tags": {"$ne": []}}
+        if user_id:
+            match_stage["user_id"] = user_id
         if date_from:
             match_stage["published_at"] = {"$gte": date_from}
         if date_to:
@@ -89,20 +95,23 @@ class AnalyticsService:
     async def get_sentiment_over_time(
         self,
         channel_id: str,
-        days: int = 30
+        days: int = 30,
+        user_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get sentiment trends over time."""
         db = get_database()
         
         date_from = datetime.utcnow() - timedelta(days=days)
         
+        match_stage = {
+            "channel_id": channel_id,
+            "published_at": {"$gte": date_from}
+        }
+        if user_id:
+            match_stage["user_id"] = user_id
+        
         pipeline = [
-            {
-                "$match": {
-                    "channel_id": channel_id,
-                    "published_at": {"$gte": date_from}
-                }
-            },
+            {"$match": match_stage},
             {
                 "$group": {
                     "_id": {
@@ -134,13 +143,18 @@ class AnalyticsService:
     async def get_top_videos(
         self,
         channel_id: str,
-        limit: int = 10
+        limit: int = 10,
+        user_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get top videos by comment count."""
         db = get_database()
         
+        match_stage = {"channel_id": channel_id}
+        if user_id:
+            match_stage["user_id"] = user_id
+        
         pipeline = [
-            {"$match": {"channel_id": channel_id}},
+            {"$match": match_stage},
             {
                 "$group": {
                     "_id": "$video_id",
@@ -162,7 +176,10 @@ class AnalyticsService:
         # Get video details
         result = []
         for stat in comment_stats:
-            video = await db.videos.find_one({"video_id": stat['_id']})
+            video_query = {"video_id": stat['_id']}
+            if user_id:
+                video_query["user_id"] = user_id
+            video = await db.videos.find_one(video_query)
             if video:
                 result.append({
                     "video_id": stat['_id'],
@@ -180,32 +197,40 @@ class AnalyticsService:
         
         return result
     
-    async def get_channel_summary(self, channel_id: str) -> Dict[str, Any]:
+    async def get_channel_summary(
+        self, 
+        channel_id: str,
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Get overall channel summary statistics."""
         db = get_database()
         
+        base_query = {"channel_id": channel_id}
+        if user_id:
+            base_query["user_id"] = user_id
+        
         # Total comments
-        total_comments = await db.comments.count_documents({"channel_id": channel_id})
+        total_comments = await db.comments.count_documents(base_query)
         
         # Total videos
-        total_videos = await db.videos.count_documents({"channel_id": channel_id})
+        total_videos = await db.videos.count_documents(base_query)
         
         # Unique commenters
-        unique_commenters = await db.commenters.count_documents({"channel_id": channel_id})
+        unique_commenters = await db.commenters.count_documents(base_query)
         
         # Bookmarked comments
         bookmarked = await db.comments.count_documents({
-            "channel_id": channel_id,
+            **base_query,
             "is_bookmarked": True
         })
         
         # Sentiment breakdown
-        sentiment = await self.get_sentiment_breakdown(channel_id)
+        sentiment = await self.get_sentiment_breakdown(channel_id, user_id)
         
         # Recent activity (last 7 days)
         week_ago = datetime.utcnow() - timedelta(days=7)
         recent_comments = await db.comments.count_documents({
-            "channel_id": channel_id,
+            **base_query,
             "published_at": {"$gte": week_ago}
         })
         

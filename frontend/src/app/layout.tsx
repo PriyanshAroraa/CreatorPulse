@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NoiseOverlay } from "@/components/ui/noise-overlay";
+import { SidebarProvider } from "@/components/layout/app-sidebar";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,9 +28,14 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950 text-zinc-50`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0f0f0f] text-[#e5e5e5] selection:bg-white selection:text-black`}
       >
-        {children}
+        <AuthProvider>
+          <NoiseOverlay />
+          <SidebarProvider>
+            {children}
+          </SidebarProvider>
+        </AuthProvider>
       </body>
     </html>
   );

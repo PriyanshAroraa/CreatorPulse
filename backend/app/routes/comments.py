@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Optional
 from datetime import datetime
 import math
 
 from app.database import get_database
 from app.models import CommentResponse, CommentBookmark, CommentTags, CommentsPaginated
+from app.routes.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -12,6 +14,7 @@ router = APIRouter()
 @router.get("/channel/{channel_id}", response_model=CommentsPaginated)
 async def list_channel_comments(
     channel_id: str,
+    user: Optional[User] = Depends(get_current_user),
     sentiment: Optional[str] = Query(None, description="Filter by sentiment (positive, neutral, negative)"),
     tags: Optional[str] = Query(None, description="Comma-separated tags to filter"),
     video_id: Optional[str] = None,
@@ -25,8 +28,11 @@ async def list_channel_comments(
     """List comments for a channel with filters."""
     db = get_database()
     
-    # Build query
+    # Build query with user_id filtering
     query = {"channel_id": channel_id}
+    
+    if user:
+        query["user_id"] = user.google_id
     
     if sentiment:
         query["sentiment"] = sentiment
@@ -75,11 +81,15 @@ async def list_channel_comments(
 
 
 @router.get("/{comment_id}", response_model=CommentResponse)
-async def get_comment(comment_id: str):
+async def get_comment(comment_id: str, user: Optional[User] = Depends(get_current_user)):
     """Get a single comment."""
     db = get_database()
     
-    comment = await db.comments.find_one({"comment_id": comment_id})
+    query = {"comment_id": comment_id}
+    if user:
+        query["user_id"] = user.google_id
+    
+    comment = await db.comments.find_one(query)
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
     
@@ -88,12 +98,20 @@ async def get_comment(comment_id: str):
 
 
 @router.patch("/{comment_id}/bookmark")
-async def toggle_bookmark(comment_id: str, bookmark: CommentBookmark):
+async def toggle_bookmark(
+    comment_id: str, 
+    bookmark: CommentBookmark,
+    user: Optional[User] = Depends(get_current_user)
+):
     """Toggle bookmark status for a comment."""
     db = get_database()
     
+    query = {"comment_id": comment_id}
+    if user:
+        query["user_id"] = user.google_id
+    
     result = await db.comments.update_one(
-        {"comment_id": comment_id},
+        query,
         {"$set": {"is_bookmarked": bookmark.is_bookmarked}}
     )
     
@@ -104,12 +122,20 @@ async def toggle_bookmark(comment_id: str, bookmark: CommentBookmark):
 
 
 @router.patch("/{comment_id}/tags")
-async def update_tags(comment_id: str, tags: CommentTags):
+async def update_tags(
+    comment_id: str, 
+    tags: CommentTags,
+    user: Optional[User] = Depends(get_current_user)
+):
     """Update tags for a comment."""
     db = get_database()
     
+    query = {"comment_id": comment_id}
+    if user:
+        query["user_id"] = user.google_id
+    
     result = await db.comments.update_one(
-        {"comment_id": comment_id},
+        query,
         {"$set": {"tags": tags.tags}}
     )
     
@@ -122,6 +148,7 @@ async def update_tags(comment_id: str, tags: CommentTags):
 @router.get("/bookmarked/{channel_id}")
 async def get_bookmarked_comments(
     channel_id: str,
+    user: Optional[User] = Depends(get_current_user),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100)
 ):
@@ -129,6 +156,8 @@ async def get_bookmarked_comments(
     db = get_database()
     
     query = {"channel_id": channel_id, "is_bookmarked": True}
+    if user:
+        query["user_id"] = user.google_id
     
     total = await db.comments.count_documents(query)
     skip = (page - 1) * limit

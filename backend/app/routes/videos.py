@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List, Optional
 
 from app.database import get_database
 from app.models import VideoResponse, VideoWithStats
 from app.services import analytics_service
+from app.routes.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -11,14 +13,19 @@ router = APIRouter()
 @router.get("/channel/{channel_id}", response_model=List[VideoResponse])
 async def list_channel_videos(
     channel_id: str,
+    user: Optional[User] = Depends(get_current_user),
     limit: int = Query(50, ge=1, le=100),
     skip: int = Query(0, ge=0)
 ):
     """List videos for a channel."""
     db = get_database()
     
+    query = {"channel_id": channel_id}
+    if user:
+        query["user_id"] = user.google_id
+    
     videos = await db.videos.find(
-        {"channel_id": channel_id}
+        query
     ).sort("published_at", -1).skip(skip).limit(limit).to_list(limit)
     
     for video in videos:
@@ -28,19 +35,30 @@ async def list_channel_videos(
 
 
 @router.get("/{video_id}", response_model=VideoWithStats)
-async def get_video(video_id: str):
+async def get_video(
+    video_id: str,
+    user: Optional[User] = Depends(get_current_user)
+):
     """Get video details with statistics."""
     db = get_database()
     
-    video = await db.videos.find_one({"video_id": video_id})
+    query = {"video_id": video_id}
+    if user:
+        query["user_id"] = user.google_id
+    
+    video = await db.videos.find_one(query)
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
     
     video['id'] = str(video['_id'])
     
     # Get sentiment breakdown
+    comment_match = {"video_id": video_id}
+    if user:
+        comment_match["user_id"] = user.google_id
+    
     pipeline = [
-        {"$match": {"video_id": video_id}},
+        {"$match": comment_match},
         {
             "$group": {
                 "_id": "$sentiment",
@@ -57,7 +75,7 @@ async def get_video(video_id: str):
     
     # Get top tags
     tag_pipeline = [
-        {"$match": {"video_id": video_id, "tags": {"$ne": []}}},
+        {"$match": {**comment_match, "tags": {"$ne": []}}},
         {"$unwind": "$tags"},
         {"$group": {"_id": "$tags", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
@@ -76,6 +94,7 @@ async def get_video(video_id: str):
 @router.get("/{video_id}/comments")
 async def get_video_comments(
     video_id: str,
+    user: Optional[User] = Depends(get_current_user),
     sentiment: Optional[str] = None,
     limit: int = Query(50, ge=1, le=100),
     skip: int = Query(0, ge=0)
@@ -84,6 +103,8 @@ async def get_video_comments(
     db = get_database()
     
     query = {"video_id": video_id}
+    if user:
+        query["user_id"] = user.google_id
     if sentiment:
         query["sentiment"] = sentiment
     

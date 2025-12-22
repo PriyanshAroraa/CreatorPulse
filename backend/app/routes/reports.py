@@ -1,36 +1,47 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from bson import ObjectId
 
 from app.database import get_database
 from app.models import ReportCreate, ReportResponse, ReportData
 from app.services import analytics_service
+from app.routes.auth import get_current_user, require_auth
+from app.models.user import User
 
 router = APIRouter()
 
 
-async def generate_report_data(channel_id: str, date_from: datetime, date_to: datetime) -> ReportData:
+async def generate_report_data(
+    channel_id: str, 
+    date_from: datetime, 
+    date_to: datetime,
+    user_id: Optional[str] = None
+) -> ReportData:
     """Generate report data for a channel."""
     db = get_database()
     
+    base_query = {"channel_id": channel_id}
+    if user_id:
+        base_query["user_id"] = user_id
+    
     # Get sentiment breakdown
-    sentiment = await analytics_service.get_sentiment_breakdown(channel_id, date_from, date_to)
+    sentiment = await analytics_service.get_sentiment_breakdown(channel_id, user_id, date_from, date_to)
     
     # Get tag breakdown
-    tags = await analytics_service.get_tag_breakdown(channel_id, date_from, date_to)
+    tags = await analytics_service.get_tag_breakdown(channel_id, user_id, date_from, date_to)
     
     # Get top videos
-    top_videos = await analytics_service.get_top_videos(channel_id, 10)
+    top_videos = await analytics_service.get_top_videos(channel_id, 10, user_id)
     
     # Get trends
     days = (date_to - date_from).days
-    trends = await analytics_service.get_sentiment_over_time(channel_id, days)
+    trends = await analytics_service.get_sentiment_over_time(channel_id, days, user_id)
     
     # Get top commenters
     commenters = await db.commenters.find(
-        {"channel_id": channel_id}
+        base_query
     ).sort("comment_count", -1).limit(10).to_list(10)
     
     top_commenters = [
@@ -44,16 +55,16 @@ async def generate_report_data(channel_id: str, date_from: datetime, date_to: da
     
     # Count totals
     total_comments = await db.comments.count_documents({
-        "channel_id": channel_id,
+        **base_query,
         "published_at": {"$gte": date_from, "$lte": date_to}
     })
     
     total_videos = await db.videos.count_documents({
-        "channel_id": channel_id,
+        **base_query,
         "published_at": {"$gte": date_from, "$lte": date_to}
     })
     
-    unique_commenters = await db.commenters.count_documents({"channel_id": channel_id})
+    unique_commenters = await db.commenters.count_documents(base_query)
     
     return ReportData(
         total_comments=total_comments,
@@ -70,12 +81,19 @@ async def generate_report_data(channel_id: str, date_from: datetime, date_to: da
 
 
 @router.post("", response_model=ReportResponse)
-async def create_report(report: ReportCreate, background_tasks: BackgroundTasks):
+async def create_report(
+    report: ReportCreate, 
+    background_tasks: BackgroundTasks,
+    user: User = Depends(require_auth)
+):
     """Create a new report."""
     db = get_database()
     
-    # Get channel name for title
-    channel = await db.channels.find_one({"channel_id": report.channel_id})
+    # Get channel name for title (ensure user owns it)
+    channel = await db.channels.find_one({
+        "channel_id": report.channel_id,
+        "user_id": user.google_id
+    })
     if not channel:
         raise HTTPException(status_code=404, detail="Channel not found")
     
@@ -85,11 +103,13 @@ async def create_report(report: ReportCreate, background_tasks: BackgroundTasks)
     report_data = await generate_report_data(
         report.channel_id,
         report.date_from,
-        report.date_to
+        report.date_to,
+        user.google_id
     )
     
     report_doc = {
         "channel_id": report.channel_id,
+        "user_id": user.google_id,  # Link to user
         "title": title,
         "date_from": report.date_from,
         "date_to": report.date_to,
@@ -106,13 +126,18 @@ async def create_report(report: ReportCreate, background_tasks: BackgroundTasks)
 
 
 @router.get("/channel/{channel_id}", response_model=List[ReportResponse])
-async def list_reports(channel_id: str):
+async def list_reports(
+    channel_id: str,
+    user: Optional[User] = Depends(get_current_user)
+):
     """List all reports for a channel."""
     db = get_database()
     
-    reports = await db.reports.find(
-        {"channel_id": channel_id}
-    ).sort("created_at", -1).to_list(50)
+    query = {"channel_id": channel_id}
+    if user:
+        query["user_id"] = user.google_id
+    
+    reports = await db.reports.find(query).sort("created_at", -1).to_list(50)
     
     for report in reports:
         report['id'] = str(report['_id'])
@@ -121,12 +146,18 @@ async def list_reports(channel_id: str):
 
 
 @router.get("/{report_id}", response_model=ReportResponse)
-async def get_report(report_id: str):
+async def get_report(
+    report_id: str,
+    user: Optional[User] = Depends(get_current_user)
+):
     """Get a specific report."""
     db = get_database()
     
     try:
-        report = await db.reports.find_one({"_id": ObjectId(report_id)})
+        query = {"_id": ObjectId(report_id)}
+        if user:
+            query["user_id"] = user.google_id
+        report = await db.reports.find_one(query)
     except:
         raise HTTPException(status_code=400, detail="Invalid report ID")
     
@@ -138,12 +169,18 @@ async def get_report(report_id: str):
 
 
 @router.get("/{report_id}/download")
-async def download_report(report_id: str):
+async def download_report(
+    report_id: str,
+    user: Optional[User] = Depends(get_current_user)
+):
     """Download report as JSON."""
     db = get_database()
     
     try:
-        report = await db.reports.find_one({"_id": ObjectId(report_id)})
+        query = {"_id": ObjectId(report_id)}
+        if user:
+            query["user_id"] = user.google_id
+        report = await db.reports.find_one(query)
     except:
         raise HTTPException(status_code=400, detail="Invalid report ID")
     
@@ -167,12 +204,18 @@ async def download_report(report_id: str):
 
 
 @router.delete("/{report_id}")
-async def delete_report(report_id: str):
+async def delete_report(
+    report_id: str,
+    user: User = Depends(require_auth)
+):
     """Delete a report."""
     db = get_database()
     
     try:
-        result = await db.reports.delete_one({"_id": ObjectId(report_id)})
+        result = await db.reports.delete_one({
+            "_id": ObjectId(report_id),
+            "user_id": user.google_id
+        })
     except:
         raise HTTPException(status_code=400, detail="Invalid report ID")
     

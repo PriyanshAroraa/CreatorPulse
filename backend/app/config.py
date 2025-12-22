@@ -13,6 +13,14 @@ class Settings(BaseSettings):
     # Gemini
     gemini_api_key: str
     
+    # Google OAuth
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    
+    # JWT
+    jwt_secret: str = "your-secret-key-change-in-production"
+    jwt_algorithm: str = "HS256"
+    
     # Server
     port: int = 8000
     frontend_url: str = "http://localhost:3000"
@@ -25,3 +33,4 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+

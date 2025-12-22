@@ -6,7 +6,7 @@ from app.config import get_settings
 from app.database import connect_to_mongo, close_mongo_connection
 
 # Import routes
-from app.routes import channels, videos, comments, analytics, community, tags, reports, chat
+from app.routes import channels, videos, comments, analytics, community, tags, reports, chat, auth
 
 settings = get_settings()
 
@@ -39,6 +39,7 @@ app.add_middleware(
 )
 
 # Register routes
+app.include_router(auth.router, prefix="/api", tags=["Authentication"])
 app.include_router(channels.router, prefix="/api/channels", tags=["Channels"])
 app.include_router(videos.router, prefix="/api/videos", tags=["Videos"])
 app.include_router(comments.router, prefix="/api/comments", tags=["Comments"])

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { analyticsApi, channelsApi } from '@/lib/api';
 import { Channel, SentimentBreakdown, SentimentTrend, TopVideo } from '@/lib/types';
-import { AppSidebar } from '@/components/layout/app-sidebar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AppSidebar, MainContent } from '@/components/layout/app-sidebar';
+import { GridCorner } from '@/components/ui/grid-corner';
 import {
     Select,
     SelectContent,
@@ -21,6 +22,7 @@ import {
     Video,
     Loader2,
     Tag,
+    ArrowLeft,
 } from 'lucide-react';
 
 export default function AnalyticsPage() {
@@ -63,8 +65,8 @@ export default function AnalyticsPage() {
 
     if (loading) {
         return (
-            <div className="flex h-screen items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="flex h-screen items-center justify-center bg-[#0f0f0f]">
+                <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
             </div>
         );
     }
@@ -72,23 +74,32 @@ export default function AnalyticsPage() {
     const maxTrendValue = Math.max(...trends.map((t) => t.total), 1);
 
     return (
-        <div className="min-h-screen bg-zinc-950">
+        <div className="min-h-screen bg-[#0f0f0f] text-[#e5e5e5]">
             <AppSidebar channelId={channelId} />
 
-            <main className="ml-64 min-h-screen transition-all duration-300">
+            <MainContent>
                 {/* Header */}
-                <header className="sticky top-0 z-30 h-16 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur">
-                    <div className="flex h-16 items-center justify-between px-6">
-                        <div className="flex items-center gap-3">
-                            <BarChart3 className="h-6 w-6" />
-                            <h1 className="text-xl font-bold">Analytics</h1>
+                <header className="relative border-b border-neutral-800 bg-[#0f0f0f]">
+                    <GridCorner corner="top-left" />
+                    <GridCorner corner="top-right" />
+                    <div className="flex h-16 items-center justify-between px-8">
+                        <div className="flex items-center gap-6">
+                            <Link href={`/channel/${channelId}`}>
+                                <button className="flex items-center gap-2 text-xs uppercase tracking-widest text-neutral-500 hover:text-[#e5e5e5] transition-colors">
+                                    <ArrowLeft size={14} /> Back
+                                </button>
+                            </Link>
+                            <div className="flex items-center gap-3">
+                                <BarChart3 className="h-5 w-5 text-neutral-500" />
+                                <h1 className="font-serif text-lg text-[#e5e5e5]">Analytics</h1>
+                            </div>
                         </div>
 
                         <Select value={days} onValueChange={setDays}>
-                            <SelectTrigger className="w-40">
+                            <SelectTrigger className="w-40 bg-[#0f0f0f] border-neutral-800 text-neutral-400">
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="bg-[#0f0f0f] border-neutral-800">
                                 <SelectItem value="7">Last 7 days</SelectItem>
                                 <SelectItem value="30">Last 30 days</SelectItem>
                                 <SelectItem value="90">Last 90 days</SelectItem>
@@ -97,301 +108,279 @@ export default function AnalyticsPage() {
                     </div>
                 </header>
 
-                <div className="p-6">
-                    {/* Sentiment Overview */}
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <Card className="bg-zinc-900/50 border-zinc-800">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <TrendingUp className="h-5 w-5" />
-                                    Sentiment Distribution
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {sentiment && (
-                                    <div className="space-y-6">
-                                        {/* Visual Bars */}
-                                        <div className="space-y-4">
-                                            <div>
-                                                <div className="mb-2 flex justify-between text-sm">
-                                                    <span className="flex items-center gap-2">
-                                                        <ThumbsUp className="h-4 w-4 text-green-500" />
-                                                        Positive
-                                                    </span>
-                                                    <span className="font-medium">
-                                                        {sentiment.breakdown.positive.toLocaleString()} ({sentiment.percentages.positive}%)
-                                                    </span>
-                                                </div>
-                                                <div className="h-4 overflow-hidden rounded-full bg-muted">
-                                                    <div
-                                                        className="h-full bg-green-500 transition-all"
-                                                        style={{ width: `${sentiment.percentages.positive}%` }}
-                                                    />
-                                                </div>
+                <div className="p-8">
+                    {/* Sentiment & Tags Grid */}
+                    <div className="grid gap-0 lg:grid-cols-2 border border-neutral-800 mb-8">
+                        {/* Sentiment Distribution */}
+                        <div className="relative p-8 border-b lg:border-b-0 lg:border-r border-neutral-800">
+                            <GridCorner corner="top-left" />
+                            <div className="flex items-center gap-2 mb-6">
+                                <TrendingUp className="h-5 w-5 text-neutral-500" />
+                                <h3 className="font-serif text-xl text-[#e5e5e5]">Sentiment Distribution</h3>
+                            </div>
+
+                            {sentiment && (
+                                <div className="space-y-6">
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <ThumbsUp className="h-4 w-4 text-neutral-400" />
+                                                <span className="text-sm text-neutral-400">Positive</span>
                                             </div>
-
-                                            <div>
-                                                <div className="mb-2 flex justify-between text-sm">
-                                                    <span className="flex items-center gap-2">
-                                                        <div className="h-4 w-4 rounded-full bg-gray-400" />
-                                                        Neutral
-                                                    </span>
-                                                    <span className="font-medium">
-                                                        {sentiment.breakdown.neutral.toLocaleString()} ({sentiment.percentages.neutral}%)
-                                                    </span>
-                                                </div>
-                                                <div className="h-4 overflow-hidden rounded-full bg-muted">
-                                                    <div
-                                                        className="h-full bg-gray-400 transition-all"
-                                                        style={{ width: `${sentiment.percentages.neutral}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <div className="mb-2 flex justify-between text-sm">
-                                                    <span className="flex items-center gap-2">
-                                                        <ThumbsDown className="h-4 w-4 text-red-500" />
-                                                        Negative
-                                                    </span>
-                                                    <span className="font-medium">
-                                                        {sentiment.breakdown.negative.toLocaleString()} ({sentiment.percentages.negative}%)
-                                                    </span>
-                                                </div>
-                                                <div className="h-4 overflow-hidden rounded-full bg-muted">
-                                                    <div
-                                                        className="h-full bg-red-500 transition-all"
-                                                        style={{ width: `${sentiment.percentages.negative}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="pt-4 text-center text-sm text-muted-foreground">
-                                            Total: {sentiment.total.toLocaleString()} comments analyzed
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Tag Breakdown */}
-                        <Card className="bg-zinc-900/50 border-zinc-800">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Tag className="h-5 w-5" />
-                                    Tag Distribution
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-3">
-                                    {Object.entries(tagBreakdown)
-                                        .sort((a, b) => b[1] - a[1])
-                                        .slice(0, 8)
-                                        .map(([tag, count]) => (
-                                            <div key={tag} className="flex items-center gap-3">
-                                                <span className="w-40 truncate text-sm capitalize">
-                                                    {tag.replace('_', ' ')}
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-serif text-lg text-[#e5e5e5]">
+                                                    {sentiment.breakdown.positive.toLocaleString()}
                                                 </span>
-                                                <div className="flex-1">
-                                                    <div className="h-2 overflow-hidden rounded-full bg-muted">
-                                                        <div
-                                                            className="h-full bg-primary transition-all"
-                                                            style={{
-                                                                width: `${(count / Math.max(...Object.values(tagBreakdown))) * 100}%`,
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <span className="text-sm font-medium">{count}</span>
+                                                <span className="text-[10px] uppercase tracking-wider text-neutral-600 border border-neutral-800 px-2 py-0.5">
+                                                    {sentiment.percentages.positive}%
+                                                </span>
                                             </div>
-                                        ))}
-
-                                    {Object.keys(tagBreakdown).length === 0 && (
-                                        <p className="py-8 text-center text-muted-foreground">
-                                            No tags found. Sync comments to see tag analytics.
-                                        </p>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Trends Chart */}
-                    <Card className="mt-6 bg-zinc-900/50 border-zinc-800">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5" />
-                                Comment Activity (Last {days} days)
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {trends.length > 0 ? (
-                                <div className="h-64 relative">
-                                    {/* SVG Line Chart */}
-                                    <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="none">
-                                        {/* Grid lines */}
-                                        <line x1="0" y1="50" x2="800" y2="50" stroke="#3f3f46" strokeWidth="1" strokeDasharray="4" />
-                                        <line x1="0" y1="100" x2="800" y2="100" stroke="#3f3f46" strokeWidth="1" strokeDasharray="4" />
-                                        <line x1="0" y1="150" x2="800" y2="150" stroke="#3f3f46" strokeWidth="1" strokeDasharray="4" />
-
-                                        {/* Area fill */}
-                                        <path
-                                            d={`M0,200 ${trends.map((day, i) => {
-                                                const x = (i / (trends.length - 1)) * 800;
-                                                const y = 200 - (maxTrendValue > 0 ? (day.total / maxTrendValue) * 180 : 0);
-                                                return `L${x},${y}`;
-                                            }).join(' ')} L800,200 Z`}
-                                            fill="url(#areaGradient)"
-                                        />
-
-                                        {/* Line */}
-                                        <path
-                                            d={`M${trends.map((day, i) => {
-                                                const x = (i / (trends.length - 1)) * 800;
-                                                const y = 200 - (maxTrendValue > 0 ? (day.total / maxTrendValue) * 180 : 0);
-                                                return `${x},${y}`;
-                                            }).join(' L')}`}
-                                            fill="none"
-                                            stroke="#10b981"
-                                            strokeWidth="3"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                        />
-
-                                        {/* Data points with larger hover area */}
-                                        {trends.map((day, i) => {
-                                            const x = (i / (trends.length - 1)) * 800;
-                                            const y = 200 - (maxTrendValue > 0 ? (day.total / maxTrendValue) * 180 : 0);
-                                            return (
-                                                <g key={day.date} className="group cursor-pointer">
-                                                    {/* Invisible larger circle for easier hover */}
-                                                    <circle
-                                                        cx={x}
-                                                        cy={y}
-                                                        r="12"
-                                                        fill="transparent"
-                                                    />
-                                                    {/* Visible circle */}
-                                                    <circle
-                                                        cx={x}
-                                                        cy={y}
-                                                        r="4"
-                                                        fill="#10b981"
-                                                        className="group-hover:r-6 transition-all"
-                                                    />
-                                                    {/* Hover ring */}
-                                                    <circle
-                                                        cx={x}
-                                                        cy={y}
-                                                        r="8"
-                                                        fill="transparent"
-                                                        stroke="#10b981"
-                                                        strokeWidth="2"
-                                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    />
-                                                    <title>{day.date}: {day.total} comments</title>
-                                                </g>
-                                            );
-                                        })}
-
-                                        {/* Gradient definition */}
-                                        <defs>
-                                            <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
-                                                <stop offset="100%" stopColor="#10b981" stopOpacity="0.05" />
-                                            </linearGradient>
-                                        </defs>
-                                    </svg>
-
-                                    {/* Legend */}
-                                    <div className="mt-2 flex justify-between text-xs text-zinc-500">
-                                        <span>{trends[0]?.date}</span>
-                                        <span className="text-emerald-500 font-medium">Max: {maxTrendValue} comments</span>
-                                        <span>{trends[trends.length - 1]?.date}</span>
-                                    </div>
-
-                                    {/* Tip */}
-                                    <p className="text-xs text-zinc-600 text-center mt-1">Hover over points to see details</p>
-                                </div>
-                            ) : (
-                                <p className="py-8 text-center text-muted-foreground">
-                                    No trend data available. Sync comments to see trends.
-                                </p>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Top Videos */}
-                    <Card className="mt-6 bg-zinc-900/50 border-zinc-800">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Video className="h-5 w-5" />
-                                Top Videos by Comments
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                {topVideos.map((video, index) => (
-                                    <div key={video.video_id} className="flex items-center gap-4">
-                                        <span
-                                            className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${index < 3
-                                                ? 'bg-yellow-100 text-yellow-800'
-                                                : 'bg-muted text-muted-foreground'
-                                                }`}
-                                        >
-                                            {index + 1}
-                                        </span>
-
-                                        {video.thumbnail_url && (
-                                            <img
-                                                src={video.thumbnail_url}
-                                                alt={video.title}
-                                                className="h-12 w-20 rounded object-cover"
+                                        </div>
+                                        <div className="h-1 overflow-hidden bg-neutral-800">
+                                            <div
+                                                className="h-full bg-neutral-400 transition-all"
+                                                style={{ width: `${sentiment.percentages.positive}%` }}
                                             />
-                                        )}
+                                        </div>
+                                    </div>
 
-                                        <div className="flex-1">
-                                            <p className="line-clamp-1 font-medium">{video.title}</p>
-                                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                                <span>{video.comment_count.toLocaleString()} comments</span>
-                                                <span className="flex items-center gap-1 text-green-600">
-                                                    <ThumbsUp className="h-3 w-3" />
-                                                    {video.positive_count}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-4 w-4 border border-neutral-600" />
+                                                <span className="text-sm text-neutral-400">Neutral</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-serif text-lg text-[#e5e5e5]">
+                                                    {sentiment.breakdown.neutral.toLocaleString()}
                                                 </span>
-                                                <span className="flex items-center gap-1 text-red-600">
-                                                    <ThumbsDown className="h-3 w-3" />
-                                                    {video.negative_count}
+                                                <span className="text-[10px] uppercase tracking-wider text-neutral-600 border border-neutral-800 px-2 py-0.5">
+                                                    {sentiment.percentages.neutral}%
                                                 </span>
                                             </div>
                                         </div>
-
-                                        <div className="text-right">
-                                            <span
-                                                className={`text-lg font-bold ${video.sentiment_ratio >= 70
-                                                    ? 'text-green-600'
-                                                    : video.sentiment_ratio >= 40
-                                                        ? 'text-gray-600'
-                                                        : 'text-red-600'
-                                                    }`}
-                                            >
-                                                {video.sentiment_ratio}%
-                                            </span>
-                                            <p className="text-xs text-muted-foreground">positive</p>
+                                        <div className="h-1 overflow-hidden bg-neutral-800">
+                                            <div
+                                                className="h-full bg-neutral-600 transition-all"
+                                                style={{ width: `${sentiment.percentages.neutral}%` }}
+                                            />
                                         </div>
                                     </div>
-                                ))}
 
-                                {topVideos.length === 0 && (
-                                    <p className="py-8 text-center text-muted-foreground">
-                                        No videos yet. Sync comments to see top videos.
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <ThumbsDown className="h-4 w-4 text-neutral-500" />
+                                                <span className="text-sm text-neutral-400">Negative</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-serif text-lg text-[#e5e5e5]">
+                                                    {sentiment.breakdown.negative.toLocaleString()}
+                                                </span>
+                                                <span className="text-[10px] uppercase tracking-wider text-neutral-600 border border-neutral-800 px-2 py-0.5">
+                                                    {sentiment.percentages.negative}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="h-1 overflow-hidden bg-neutral-800">
+                                            <div
+                                                className="h-full bg-neutral-500 transition-all"
+                                                style={{ width: `${sentiment.percentages.negative}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-4 text-center text-[10px] uppercase tracking-widest text-neutral-600">
+                                        Total: {sentiment.total.toLocaleString()} comments analyzed
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Tag Distribution */}
+                        <div className="relative p-8">
+                            <GridCorner corner="top-right" />
+                            <div className="flex items-center gap-2 mb-6">
+                                <Tag className="h-5 w-5 text-neutral-500" />
+                                <h3 className="font-serif text-xl text-[#e5e5e5]">Tag Distribution</h3>
+                            </div>
+
+                            <div className="space-y-3">
+                                {Object.entries(tagBreakdown)
+                                    .sort((a, b) => b[1] - a[1])
+                                    .slice(0, 8)
+                                    .map(([tag, count]) => (
+                                        <div key={tag} className="flex items-center gap-3">
+                                            <span className="w-40 truncate text-sm text-neutral-400 capitalize">
+                                                {tag.replace('_', ' ')}
+                                            </span>
+                                            <div className="flex-1">
+                                                <div className="h-1 overflow-hidden bg-neutral-800">
+                                                    <div
+                                                        className="h-full bg-neutral-500 transition-all"
+                                                        style={{
+                                                            width: `${(count / Math.max(...Object.values(tagBreakdown))) * 100}%`,
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <span className="font-serif text-sm text-[#e5e5e5]">{count}</span>
+                                        </div>
+                                    ))}
+
+                                {Object.keys(tagBreakdown).length === 0 && (
+                                    <p className="py-8 text-center text-neutral-600">
+                                        No tags found. Sync comments to see tag analytics.
                                     </p>
                                 )}
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
+
+                    {/* Trends Chart */}
+                    <div className="relative border border-neutral-800 p-8 mb-8">
+                        <GridCorner corner="top-left" />
+                        <GridCorner corner="top-right" />
+                        <GridCorner corner="bottom-left" />
+                        <GridCorner corner="bottom-right" />
+
+                        <div className="flex items-center gap-2 mb-6">
+                            <TrendingUp className="h-5 w-5 text-neutral-500" />
+                            <h3 className="font-serif text-xl text-[#e5e5e5]">Comment Activity (Last {days} days)</h3>
+                        </div>
+
+                        {trends.length > 0 ? (
+                            <div className="h-64 relative">
+                                <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="none">
+                                    {/* Grid lines */}
+                                    <line x1="0" y1="50" x2="800" y2="50" stroke="#262626" strokeWidth="1" strokeDasharray="4" />
+                                    <line x1="0" y1="100" x2="800" y2="100" stroke="#262626" strokeWidth="1" strokeDasharray="4" />
+                                    <line x1="0" y1="150" x2="800" y2="150" stroke="#262626" strokeWidth="1" strokeDasharray="4" />
+
+                                    {/* Area fill */}
+                                    <path
+                                        d={`M0,200 ${trends.map((day, i) => {
+                                            const x = (i / (trends.length - 1)) * 800;
+                                            const y = 200 - (maxTrendValue > 0 ? (day.total / maxTrendValue) * 180 : 0);
+                                            return `L${x},${y}`;
+                                        }).join(' ')} L800,200 Z`}
+                                        fill="url(#areaGradient)"
+                                    />
+
+                                    {/* Line */}
+                                    <path
+                                        d={`M${trends.map((day, i) => {
+                                            const x = (i / (trends.length - 1)) * 800;
+                                            const y = 200 - (maxTrendValue > 0 ? (day.total / maxTrendValue) * 180 : 0);
+                                            return `${x},${y}`;
+                                        }).join(' L')}`}
+                                        fill="none"
+                                        stroke="#737373"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+
+                                    {/* Data points */}
+                                    {trends.map((day, i) => {
+                                        const x = (i / (trends.length - 1)) * 800;
+                                        const y = 200 - (maxTrendValue > 0 ? (day.total / maxTrendValue) * 180 : 0);
+                                        return (
+                                            <g key={day.date} className="group cursor-pointer">
+                                                <circle cx={x} cy={y} r="12" fill="transparent" />
+                                                <circle cx={x} cy={y} r="3" fill="#737373" />
+                                                <circle
+                                                    cx={x} cy={y} r="6"
+                                                    fill="transparent" stroke="#737373" strokeWidth="1"
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                                />
+                                                <title>{day.date}: {day.total} comments</title>
+                                            </g>
+                                        );
+                                    })}
+
+                                    <defs>
+                                        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#737373" stopOpacity="0.2" />
+                                            <stop offset="100%" stopColor="#737373" stopOpacity="0.02" />
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+
+                                <div className="mt-4 flex justify-between text-[10px] uppercase tracking-widest text-neutral-600">
+                                    <span>{trends[0]?.date}</span>
+                                    <span className="text-neutral-400">Max: {maxTrendValue} comments</span>
+                                    <span>{trends[trends.length - 1]?.date}</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="py-8 text-center text-neutral-600">
+                                No trend data available. Sync comments to see trends.
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Top Videos */}
+                    <div className="relative border border-neutral-800">
+                        <div className="p-4 border-b border-neutral-800">
+                            <GridCorner corner="top-left" />
+                            <GridCorner corner="top-right" />
+                            <div className="flex items-center gap-2">
+                                <Video className="h-5 w-5 text-neutral-500" />
+                                <h3 className="font-serif text-xl text-[#e5e5e5]">Top Videos by Comments</h3>
+                            </div>
+                        </div>
+
+                        <div>
+                            {topVideos.map((video, index) => (
+                                <div key={video.video_id} className={`flex items-center gap-4 p-4 hover:bg-white/[0.02] transition-colors ${index !== topVideos.length - 1 ? 'border-b border-neutral-800' : ''}`}>
+                                    <span className="font-serif text-lg text-neutral-600 w-8 text-center">
+                                        {String(index + 1).padStart(2, '0')}
+                                    </span>
+
+                                    {video.thumbnail_url && (
+                                        <img
+                                            src={video.thumbnail_url}
+                                            alt={video.title}
+                                            className="h-12 w-20 object-cover border border-neutral-800"
+                                        />
+                                    )}
+
+                                    <div className="flex-1">
+                                        <p className="line-clamp-1 text-[#e5e5e5]">{video.title}</p>
+                                        <div className="flex items-center gap-4 text-xs text-neutral-600 mt-1">
+                                            <span>{video.comment_count.toLocaleString()} comments</span>
+                                            <span className="flex items-center gap-1">
+                                                <ThumbsUp className="h-3 w-3" />
+                                                {video.positive_count}
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <ThumbsDown className="h-3 w-3" />
+                                                {video.negative_count}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-right">
+                                        <span className="font-serif text-xl text-[#e5e5e5]">
+                                            {video.sentiment_ratio}%
+                                        </span>
+                                        <p className="text-[10px] uppercase tracking-widest text-neutral-600">positive</p>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {topVideos.length === 0 && (
+                                <p className="py-8 text-center text-neutral-600">
+                                    No videos yet. Sync comments to see top videos.
+                                </p>
+                            )}
+                        </div>
+                        <GridCorner corner="bottom-left" />
+                        <GridCorner corner="bottom-right" />
+                    </div>
                 </div>
-            </main>
+            </MainContent>
         </div>
     );
 }

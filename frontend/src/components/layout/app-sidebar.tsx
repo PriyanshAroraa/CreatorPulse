@@ -1,10 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { GridCorner } from '@/components/ui/grid-corner';
 import {
     Tooltip,
     TooltipContent,
@@ -23,14 +24,13 @@ import {
     Users,
     FileText,
     Sparkles,
-    Settings,
     ChevronLeft,
     ChevronRight,
     Menu,
-    Activity,
+    Plus,
 } from 'lucide-react';
 
-// Sidebar context
+// Sidebar context - exported for use in pages
 interface SidebarContextType {
     isCollapsed: boolean;
     setIsCollapsed: (value: boolean) => void;
@@ -42,6 +42,43 @@ const SidebarContext = createContext<SidebarContextType>({
 });
 
 export const useSidebar = () => useContext(SidebarContext);
+
+// Provider component to wrap the app
+interface SidebarProviderProps {
+    children: ReactNode;
+}
+
+export function SidebarProvider({ children }: SidebarProviderProps) {
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    return (
+        <SidebarContext.Provider value={{ isCollapsed, setIsCollapsed }}>
+            {children}
+        </SidebarContext.Provider>
+    );
+}
+
+// Main content wrapper that responds to sidebar state
+interface MainContentProps {
+    children: ReactNode;
+    className?: string;
+}
+
+export function MainContent({ children, className }: MainContentProps) {
+    const { isCollapsed } = useSidebar();
+
+    return (
+        <main
+            className={cn(
+                'min-h-screen transition-all duration-300',
+                isCollapsed ? 'ml-16' : 'ml-64',
+                className
+            )}
+        >
+            {children}
+        </main>
+    );
+}
 
 interface NavItem {
     title: string;
@@ -55,13 +92,13 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ channelId }: AppSidebarProps) {
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const { isCollapsed, setIsCollapsed } = useSidebar();
     const pathname = usePathname();
 
     const mainNavItems: NavItem[] = [
         {
             title: 'Dashboard',
-            href: channelId ? `/channel/${channelId}` : '/',
+            href: channelId ? `/channel/${channelId}` : '/dashboard',
             icon: <LayoutDashboard className="h-4 w-4" />,
         },
     ];
@@ -98,7 +135,7 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
         : [];
 
     const isActive = (href: string) => {
-        if (href === '/') return pathname === '/';
+        if (href === '/dashboard') return pathname === '/dashboard';
         return pathname === href || pathname.startsWith(href + '/');
     };
 
@@ -109,20 +146,20 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
             <Link
                 href={item.href}
                 className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                    'hover:bg-zinc-800/50',
+                    'flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all border-l-2',
+                    'hover:bg-white/[0.02] hover:border-neutral-600',
                     active
-                        ? 'bg-zinc-800 text-white'
-                        : 'text-zinc-400 hover:text-white',
-                    isCollapsed && 'justify-center px-2'
+                        ? 'bg-white/[0.02] border-[#e5e5e5] text-[#e5e5e5]'
+                        : 'border-transparent text-neutral-500 hover:text-[#e5e5e5]',
+                    isCollapsed && 'justify-center px-2 border-l-0'
                 )}
             >
-                <span className={cn(active && 'text-emerald-400')}>{item.icon}</span>
+                <span className={cn(active && 'text-[#e5e5e5]')}>{item.icon}</span>
                 {!isCollapsed && (
                     <>
                         <span className="flex-1">{item.title}</span>
                         {item.badge && (
-                            <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                            <span className="border border-neutral-700 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
                                 {item.badge}
                             </span>
                         )}
@@ -135,7 +172,7 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
             return (
                 <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                    <TooltipContent side="right" className="bg-zinc-800 text-white border-zinc-700">
+                    <TooltipContent side="right" className="bg-[#0f0f0f] text-[#e5e5e5] border-neutral-800">
                         <p>{item.title}</p>
                     </TooltipContent>
                 </Tooltip>
@@ -147,77 +184,90 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
 
     return (
         <TooltipProvider>
-            <SidebarContext.Provider value={{ isCollapsed, setIsCollapsed }}>
-                <aside
-                    className={cn(
-                        'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-zinc-800 bg-zinc-950 transition-all duration-300',
-                        isCollapsed ? 'w-16' : 'w-64'
-                    )}
-                >
-                    {/* Logo */}
-                    <div className={cn(
-                        'flex h-16 items-center border-b border-zinc-800 px-4',
-                        isCollapsed ? 'justify-center' : 'gap-3'
-                    )}>
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600">
-                            <Activity className="h-4 w-4 text-white" />
-                        </div>
-                        {!isCollapsed && (
-                            <div className="flex flex-col">
-                                <span className="font-bold text-white">CreatorPulse</span>
-                                <span className="text-[10px] text-zinc-500">YouTube Analytics</span>
-                            </div>
-                        )}
+            <aside
+                className={cn(
+                    'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-neutral-800 bg-[#0f0f0f] transition-all duration-300',
+                    isCollapsed ? 'w-16' : 'w-64'
+                )}
+            >
+                {/* Logo Section */}
+                <div className={cn(
+                    'relative flex h-16 items-center border-b border-neutral-800 px-4',
+                    isCollapsed ? 'justify-center' : 'gap-3'
+                )}>
+                    <GridCorner corner="top-left" />
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-neutral-700">
+                        <Plus className="h-4 w-4 text-neutral-400" />
                     </div>
+                    {!isCollapsed && (
+                        <div className="flex flex-col">
+                            <span className="font-serif text-lg text-[#e5e5e5]">CreatorPulse</span>
+                            <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">Analytics Platform</span>
+                        </div>
+                    )}
+                </div>
 
-                    {/* Navigation */}
-                    <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-                        {/* Main Nav */}
-                        {mainNavItems.map((item) => (
-                            <NavLink key={item.href} item={item} />
-                        ))}
+                {/* Navigation */}
+                <nav className="flex-1 overflow-y-auto py-4 space-y-1">
+                    {/* Main Nav */}
+                    {!isCollapsed && (
+                        <div className="mb-2 px-4">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-600">
+                                Navigation
+                            </p>
+                        </div>
+                    )}
+                    {mainNavItems.map((item) => (
+                        <NavLink key={item.href} item={item} />
+                    ))}
 
-                        {/* Channel Nav */}
-                        {channelNavItems.length > 0 && (
+                    {/* Channel Nav */}
+                    {channelNavItems.length > 0 && (
+                        <>
+                            {!isCollapsed && (
+                                <div className="mt-6 mb-2 px-4">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-600">
+                                        Channel
+                                    </p>
+                                </div>
+                            )}
+                            {isCollapsed && <div className="my-4 border-t border-neutral-800" />}
+                            {channelNavItems.map((item) => (
+                                <NavLink key={item.href} item={item} />
+                            ))}
+                        </>
+                    )}
+                </nav>
+
+                {/* Version / Collapse Button */}
+                <div className="border-t border-neutral-800 p-3">
+                    {!isCollapsed && (
+                        <div className="mb-3 px-1">
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                                System v0.1
+                            </p>
+                        </div>
+                    )}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className={cn(
+                            'w-full text-neutral-500 hover:text-[#e5e5e5] hover:bg-white/[0.02] border border-neutral-800',
+                            isCollapsed && 'px-2'
+                        )}
+                    >
+                        {isCollapsed ? (
+                            <ChevronRight className="h-4 w-4" />
+                        ) : (
                             <>
-                                {!isCollapsed && (
-                                    <div className="mt-6 mb-2 px-3">
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
-                                            Channel
-                                        </p>
-                                    </div>
-                                )}
-                                {isCollapsed && <div className="my-4 border-t border-zinc-800" />}
-                                {channelNavItems.map((item) => (
-                                    <NavLink key={item.href} item={item} />
-                                ))}
+                                <ChevronLeft className="h-4 w-4 mr-2" />
+                                Collapse
                             </>
                         )}
-                    </nav>
-
-                    {/* Collapse Button */}
-                    <div className="border-t border-zinc-800 p-3">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setIsCollapsed(!isCollapsed)}
-                            className={cn(
-                                'w-full text-zinc-400 hover:text-white hover:bg-zinc-800',
-                                isCollapsed && 'px-2'
-                            )}
-                        >
-                            {isCollapsed ? (
-                                <ChevronRight className="h-4 w-4" />
-                            ) : (
-                                <>
-                                    <ChevronLeft className="h-4 w-4 mr-2" />
-                                    Collapse
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </aside>
-            </SidebarContext.Provider>
+                    </Button>
+                </div>
+            </aside>
         </TooltipProvider>
     );
 }
@@ -268,16 +318,16 @@ export function MobileSidebar({ channelId }: AppSidebarProps) {
     return (
         <Sheet>
             <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
+                <Button variant="ghost" size="icon" className="md:hidden border border-neutral-800">
                     <Menu className="h-5 w-5" />
                 </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-64 bg-zinc-950 border-zinc-800 p-0">
-                <div className="flex h-16 items-center gap-3 border-b border-zinc-800 px-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600">
-                        <Activity className="h-4 w-4 text-white" />
+            <SheetContent side="left" className="w-64 bg-[#0f0f0f] border-neutral-800 p-0">
+                <div className="flex h-16 items-center gap-3 border-b border-neutral-800 px-4">
+                    <div className="flex h-8 w-8 items-center justify-center border border-neutral-700">
+                        <Plus className="h-4 w-4 text-neutral-400" />
                     </div>
-                    <span className="font-bold text-white">CreatorPulse</span>
+                    <span className="font-serif text-lg text-[#e5e5e5]">CreatorPulse</span>
                 </div>
                 <nav className="p-3 space-y-1">
                     {navItems.map((item) => (
@@ -285,10 +335,10 @@ export function MobileSidebar({ channelId }: AppSidebarProps) {
                             key={item.href}
                             href={item.href}
                             className={cn(
-                                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                                'flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all border-l-2',
                                 isActive(item.href)
-                                    ? 'bg-zinc-800 text-white'
-                                    : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-white'
+                                    ? 'bg-white/[0.02] border-[#e5e5e5] text-[#e5e5e5]'
+                                    : 'border-transparent text-neutral-500 hover:bg-white/[0.02] hover:text-[#e5e5e5]'
                             )}
                         >
                             {item.icon}

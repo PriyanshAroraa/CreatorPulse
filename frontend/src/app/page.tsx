@@ -1,353 +1,246 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { channelsApi } from '@/lib/api';
-import { Channel } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { GridCorner } from "@/components/ui/grid-corner";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { AppSidebar } from '@/components/layout/app-sidebar';
-import {
-  Plus,
-  Loader2,
-  Youtube,
-  MessageSquare,
-  Video,
-  RefreshCw,
   ArrowRight,
-  Zap,
+  MessageSquare,
   TrendingUp,
-  Trash2,
-} from 'lucide-react';
+  Users,
+  Bot,
+  Sparkles,
+  BarChart3,
+  Shield
+} from "lucide-react";
 
-export default function HomePage() {
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [addingChannel, setAddingChannel] = useState(false);
-  const [deletingChannel, setDeletingChannel] = useState<string | null>(null);
-  const [channelUrl, setChannelUrl] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  useEffect(() => {
-    loadChannels();
-  }, []);
-
-  const loadChannels = async () => {
-    try {
-      const data = await channelsApi.list();
-      setChannels(data);
-    } catch (error) {
-      console.error('Failed to load channels:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddChannel = async () => {
-    if (!channelUrl.trim()) return;
-    setAddingChannel(true);
-    try {
-      const channel = await channelsApi.add(channelUrl);
-      setChannels((prev) => [channel, ...prev]);
-      setChannelUrl('');
-      setDialogOpen(false);
-    } catch (error) {
-      console.error('Failed to add channel:', error);
-      alert('Failed to add channel. Please check the URL and try again.');
-    } finally {
-      setAddingChannel(false);
-    }
-  };
-
-  const handleSync = async (channelId: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      await channelsApi.sync(channelId);
-      setChannels((prev) =>
-        prev.map((ch) =>
-          ch.channel_id === channelId ? { ...ch, sync_status: 'syncing' } : ch
-        )
-      );
-    } catch (error) {
-      console.error('Failed to start sync:', error);
-    }
-  };
-
-  const handleDelete = async (channelId: string, channelName: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!confirm(`Are you sure you want to delete "${channelName}"? This will remove all associated comments and data.`)) {
-      return;
-    }
-
-    setDeletingChannel(channelId);
-    try {
-      await channelsApi.delete(channelId);
-      setChannels((prev) => prev.filter((ch) => ch.channel_id !== channelId));
-    } catch (error) {
-      console.error('Failed to delete channel:', error);
-      alert('Failed to delete channel. Please try again.');
-    } finally {
-      setDeletingChannel(null);
-    }
-  };
-
-  const totalComments = channels.reduce((acc, ch) => acc + (ch.total_comments || 0), 0);
-  const totalVideos = channels.reduce((acc, ch) => acc + (ch.total_videos_analyzed || 0), 0);
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-zinc-950">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-      </div>
-    );
-  }
+export default function LandingPage() {
+  const { data: session } = useSession();
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <AppSidebar />
-
-      {/* Main Content */}
-      <main className="ml-64 min-h-screen transition-all duration-300">
-        {/* Header */}
-        <header className="sticky top-0 z-30 h-16 border-b border-zinc-800 bg-zinc-950/90 backdrop-blur">
-          <div className="flex h-full items-center justify-between px-8">
-            <div>
-              <h1 className="text-lg font-semibold text-white">Dashboard</h1>
-              <p className="text-sm text-zinc-500">Welcome back</p>
+    <div className="min-h-screen bg-[#0f0f0f] text-[#e5e5e5]">
+      {/* Navigation */}
+      <nav className="relative border-b border-neutral-800">
+        <GridCorner corner="top-left" />
+        <GridCorner corner="top-right" />
+        <div className="max-w-7xl mx-auto px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 border border-neutral-800 flex items-center justify-center">
+              <Sparkles className="h-4 w-4" />
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5">
-                <Zap className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-xs text-emerald-300">Local AI</span>
-              </div>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Channel
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-zinc-900 border-zinc-800">
-                  <DialogHeader>
-                    <DialogTitle className="text-white">Add YouTube Channel</DialogTitle>
-                    <DialogDescription className="text-zinc-400">
-                      Paste a channel URL to start analyzing
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 pt-4">
-                    <Input
-                      placeholder="youtube.com/@channel"
-                      value={channelUrl}
-                      onChange={(e) => setChannelUrl(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddChannel()}
-                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500"
-                    />
-                    <Button
-                      onClick={handleAddChannel}
-                      disabled={addingChannel || !channelUrl.trim()}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      {addingChannel ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Adding...
-                        </>
-                      ) : (
-                        'Add Channel'
-                      )}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </header>
-
-        <div className="p-8">
-          {/* Stats Grid */}
-          <div className="grid gap-4 md:grid-cols-4 mb-8">
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-zinc-500 mb-1">Channels</p>
-                    <p className="text-3xl font-bold text-white">{channels.length}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                    <Youtube className="h-5 w-5 text-emerald-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-zinc-500 mb-1">Comments</p>
-                    <p className="text-3xl font-bold text-white">{totalComments.toLocaleString()}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                    <MessageSquare className="h-5 w-5 text-blue-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-zinc-500 mb-1">Videos</p>
-                    <p className="text-3xl font-bold text-white">{totalVideos}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                    <Video className="h-5 w-5 text-purple-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-zinc-900/50 border-zinc-800">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-zinc-500 mb-1">Processing</p>
-                    <p className="text-3xl font-bold text-emerald-400">Local</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-emerald-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <span className="font-serif text-xl">CreatorPulse</span>
           </div>
 
-          {/* Channels Section */}
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Your Channels</h2>
-              <p className="text-sm text-zinc-500">Select a channel to view analytics</p>
-            </div>
+          <div className="flex items-center gap-6">
+            {session ? (
+              <Link href="/dashboard">
+                <button className="flex items-center gap-2 bg-[#e5e5e5] text-[#0f0f0f] px-4 py-2 hover:bg-white transition-colors text-sm font-medium">
+                  Go to Dashboard
+                  <ArrowRight size={14} />
+                </button>
+              </Link>
+            ) : (
+              <Link href="/login">
+                <button className="flex items-center gap-2 bg-[#e5e5e5] text-[#0f0f0f] px-4 py-2 hover:bg-white transition-colors text-sm font-medium">
+                  Sign In
+                  <ArrowRight size={14} />
+                </button>
+              </Link>
+            )}
           </div>
-
-          {channels.length === 0 ? (
-            <Card className="bg-zinc-900/50 border-zinc-800 border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-20">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-800 mb-4">
-                  <Youtube className="h-8 w-8 text-zinc-500" />
-                </div>
-                <h3 className="text-lg font-medium text-white mb-2">No channels yet</h3>
-                <p className="text-zinc-500 text-center max-w-sm mb-6">
-                  Add your first YouTube channel to start analyzing comments
-                </p>
-                <Button onClick={() => setDialogOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Channel
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {channels.map((channel) => (
-                <Link key={channel.channel_id} href={`/channel/${channel.channel_id}`}>
-                  <Card className="bg-zinc-900/50 border-zinc-800 hover:border-emerald-500/30 hover:bg-zinc-900 transition-all cursor-pointer group">
-                    <CardContent className="p-5">
-                      <div className="flex items-start gap-4 mb-4">
-                        {channel.thumbnail_url ? (
-                          <img
-                            src={channel.thumbnail_url}
-                            alt={channel.name}
-                            className="h-12 w-12 rounded-full ring-2 ring-zinc-800 group-hover:ring-emerald-500/30"
-                          />
-                        ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800">
-                            <Youtube className="h-6 w-6 text-zinc-500" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-white truncate">{channel.name}</h3>
-                          <p className="text-sm text-zinc-500">
-                            {channel.subscriber_count?.toLocaleString()} subscribers
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-4 border-t border-zinc-800">
-                        <div className="flex items-center gap-4 text-sm text-zinc-400">
-                          <span className="flex items-center gap-1.5">
-                            <MessageSquare className="h-4 w-4" />
-                            {channel.total_comments.toLocaleString()}
-                          </span>
-                          <span className="flex items-center gap-1.5">
-                            <Video className="h-4 w-4" />
-                            {channel.total_videos_analyzed}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {channel.sync_status === 'completed' && (
-                            <Badge className="bg-emerald-500/10 text-emerald-400 border-0 text-xs">
-                              Synced
-                            </Badge>
-                          )}
-                          {channel.sync_status === 'syncing' && (
-                            <Badge className="bg-amber-500/10 text-amber-400 border-0 animate-pulse text-xs">
-                              Syncing
-                            </Badge>
-                          )}
-                          {(channel.sync_status === 'pending' || !channel.sync_status) && (
-                            <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-xs">
-                              Pending
-                            </Badge>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-zinc-500 hover:text-white hover:bg-zinc-800"
-                            onClick={(e) => handleSync(channel.channel_id, e)}
-                            disabled={channel.sync_status === 'syncing'}
-                          >
-                            <RefreshCw className={`h-3.5 w-3.5 ${channel.sync_status === 'syncing' ? 'animate-spin' : ''}`} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-zinc-500 hover:text-red-400 hover:bg-red-500/10"
-                            onClick={(e) => handleDelete(channel.channel_id, channel.name, e)}
-                            disabled={deletingChannel === channel.channel_id}
-                          >
-                            {deletingChannel === channel.channel_id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between mt-4 text-sm">
-                        <span className="text-zinc-500">View Analytics</span>
-                        <ArrowRight className="h-4 w-4 text-zinc-600 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
-      </main>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative border-b border-neutral-800">
+        <div className="max-w-7xl mx-auto px-8 py-24">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-500 mb-4">
+                YouTube Analytics Platform
+              </p>
+              <h1 className="font-serif text-5xl lg:text-6xl leading-tight mb-6">
+                Understand Your <br />
+                <span className="text-neutral-400">Audience</span> Better
+              </h1>
+              <p className="text-neutral-400 text-lg max-w-md mb-8">
+                AI-powered sentiment analysis and insights from your YouTube comments.
+                Know what your viewers think, want, and feel.
+              </p>
+              <div className="flex items-center gap-4">
+                <Link href={session ? "/dashboard" : "/login"}>
+                  <button className="flex items-center gap-2 bg-[#e5e5e5] text-[#0f0f0f] px-6 py-3 hover:bg-white transition-colors font-medium">
+                    Get Started Free
+                    <ArrowRight size={16} />
+                  </button>
+                </Link>
+                <span className="text-[10px] uppercase tracking-widest text-neutral-600">
+                  No credit card required
+                </span>
+              </div>
+            </div>
+
+            {/* Hero Visual */}
+            <div className="relative border border-neutral-800 p-8">
+              <GridCorner corner="top-left" />
+              <GridCorner corner="top-right" />
+              <GridCorner corner="bottom-left" />
+              <GridCorner corner="bottom-right" />
+
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-widest text-neutral-600">Sentiment Overview</span>
+                  <span className="text-[10px] uppercase tracking-widest text-neutral-600">Live Demo</span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="border border-neutral-800 p-4 text-center">
+                    <p className="font-serif text-2xl text-[#e5e5e5]">78%</p>
+                    <p className="text-[10px] uppercase tracking-wider text-neutral-600 mt-1">Positive</p>
+                  </div>
+                  <div className="border border-neutral-800 p-4 text-center">
+                    <p className="font-serif text-2xl text-neutral-400">15%</p>
+                    <p className="text-[10px] uppercase tracking-wider text-neutral-600 mt-1">Neutral</p>
+                  </div>
+                  <div className="border border-neutral-800 p-4 text-center">
+                    <p className="font-serif text-2xl text-neutral-500">7%</p>
+                    <p className="text-[10px] uppercase tracking-wider text-neutral-600 mt-1">Negative</p>
+                  </div>
+                </div>
+
+                <div className="h-32 flex items-end gap-1">
+                  {[40, 55, 45, 70, 85, 60, 75, 90, 65, 80, 70, 85].map((height, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 bg-neutral-700 transition-all hover:bg-neutral-500"
+                      style={{ height: `${height}%` }}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex justify-between text-[10px] uppercase tracking-widest text-neutral-600">
+                  <span>Jan</span>
+                  <span>Dec</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="relative border-b border-neutral-800">
+        <div className="max-w-7xl mx-auto px-8 py-24">
+          <div className="text-center mb-16">
+            <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-500 mb-4">
+              Powerful Features
+            </p>
+            <h2 className="font-serif text-4xl">Everything You Need</h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-0 border border-neutral-800">
+            {[
+              {
+                icon: MessageSquare,
+                title: "Comment Analysis",
+                description: "Automatically analyze thousands of comments with AI-powered sentiment detection."
+              },
+              {
+                icon: TrendingUp,
+                title: "Trend Insights",
+                description: "Track sentiment trends over time and identify what content resonates."
+              },
+              {
+                icon: Users,
+                title: "Community Insights",
+                description: "Discover your most engaged fans, repeat commenters, and community patterns."
+              },
+              {
+                icon: Bot,
+                title: "AI Chat",
+                description: "Ask questions about your comments in natural language and get instant insights."
+              },
+              {
+                icon: BarChart3,
+                title: "Rich Analytics",
+                description: "Detailed breakdowns by video, tag, sentiment, and time period."
+              },
+              {
+                icon: Shield,
+                title: "Secure & Private",
+                description: "Your data is encrypted and never shared. GDPR compliant."
+              }
+            ].map((feature, index) => (
+              <div
+                key={feature.title}
+                className={`relative p-8 hover:bg-white/[0.02] transition-colors
+                  ${index < 3 ? 'lg:border-b border-neutral-800' : ''}
+                  ${index % 3 !== 2 ? 'lg:border-r border-neutral-800' : ''}
+                  ${index % 2 !== 1 ? 'md:border-r lg:border-r-0 border-neutral-800' : 'md:border-r-0'}
+                  ${index < 4 ? 'md:border-b lg:border-b-0 border-neutral-800' : 'md:border-b-0'}
+                `}
+              >
+                {index === 0 && <GridCorner corner="top-left" />}
+                {index === 2 && <GridCorner corner="top-right" />}
+                {index === 3 && <GridCorner corner="bottom-left" />}
+                {index === 5 && <GridCorner corner="bottom-right" />}
+
+                <div className="h-10 w-10 border border-neutral-800 flex items-center justify-center mb-4">
+                  <feature.icon className="h-5 w-5 text-neutral-500" />
+                </div>
+                <h3 className="font-serif text-xl mb-2">{feature.title}</h3>
+                <p className="text-neutral-500 text-sm">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="relative border-b border-neutral-800">
+        <div className="max-w-7xl mx-auto px-8 py-24">
+          <div className="relative border border-neutral-800 p-12 text-center">
+            <GridCorner corner="top-left" />
+            <GridCorner corner="top-right" />
+            <GridCorner corner="bottom-left" />
+            <GridCorner corner="bottom-right" />
+
+            <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-500 mb-4">
+              Ready to start?
+            </p>
+            <h2 className="font-serif text-4xl mb-4">Start Analyzing Today</h2>
+            <p className="text-neutral-400 max-w-md mx-auto mb-8">
+              Connect your YouTube channel and get insights in minutes. No complex setup required.
+            </p>
+            <Link href={session ? "/dashboard" : "/login"}>
+              <button className="inline-flex items-center gap-2 bg-[#e5e5e5] text-[#0f0f0f] px-8 py-4 hover:bg-white transition-colors font-medium">
+                Get Started Free
+                <ArrowRight size={16} />
+              </button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="relative">
+        <GridCorner corner="bottom-left" />
+        <GridCorner corner="bottom-right" />
+        <div className="max-w-7xl mx-auto px-8 py-12">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 border border-neutral-800 flex items-center justify-center">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <span className="font-serif text-xl">CreatorPulse</span>
+            </div>
+
+            <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-600">
+              © 2025 CreatorPulse / All Rights Reserved
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
