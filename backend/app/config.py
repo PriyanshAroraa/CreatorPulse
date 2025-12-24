@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     jwt_secret: str = "your-secret-key-change-in-production"
     jwt_algorithm: str = "HS256"
     
+    # Dodo Payments
+    dodo_api_key: str = ""
+    dodo_webhook_secret: str = ""
+    dodo_product_id: str = "pdt_0NUo5b"  # CreatorPulse Pro
+    
     # Server
     port: int = 8000
     frontend_url: str = "http://localhost:3000"

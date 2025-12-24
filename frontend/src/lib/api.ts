@@ -277,3 +277,19 @@ export const chatApi = {
             method: 'DELETE',
         }),
 };
+
+// Subscription API
+export const subscriptionApi = {
+    getStatus: () =>
+        fetchApi<{
+            status: string;
+            plan: string;
+            max_channels: number;
+            authenticated: boolean;
+        }>('/webhooks/subscription/status'),
+
+    createCheckout: () =>
+        fetchApi<{ checkout_url: string }>('/webhooks/checkout/create', {
+            method: 'POST',
+        }),
+};

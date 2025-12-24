@@ -6,7 +6,7 @@ from app.config import get_settings
 from app.database import connect_to_mongo, close_mongo_connection
 
 # Import routes
-from app.routes import channels, videos, comments, analytics, community, tags, reports, chat, auth
+from app.routes import channels, videos, comments, analytics, community, tags, reports, chat, auth, payments
 
 settings = get_settings()
 
@@ -53,6 +53,7 @@ app.include_router(community.router, prefix="/api/community", tags=["Community"]
 app.include_router(tags.router, prefix="/api/tags", tags=["Tags"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
+app.include_router(payments.router, prefix="/api/webhooks", tags=["Webhooks"])
 
 
 @app.get("/")

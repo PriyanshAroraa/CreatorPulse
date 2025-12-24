@@ -40,6 +40,17 @@ async def add_channel(
             existing['_id'] = str(existing['_id'])
             return ChannelResponse(**existing)
         
+        # Check channel limit based on subscription
+        user_data = await db.users.find_one({"google_id": user_id}) if user else None
+        max_channels = user_data.get("max_channels", 1) if user_data else 1
+        
+        current_channel_count = await db.channels.count_documents({"user_id": user_id})
+        if current_channel_count >= max_channels:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Channel limit reached ({max_channels}). Upgrade to Pro for more channels."
+            )
+        
         # Get channel info from YouTube
         channel_info = youtube_service.get_channel_info(channel_id)
         if not channel_info:
@@ -63,13 +74,13 @@ async def add_channel(
         await db.channel_logs.delete_many({"channel_id": channel_id, "user_id": user_id})
         
         # Trigger initial sync in background
-        # Defaulting to 30 days back and 100 videos (user request) for initial sync
+        # Defaulting to 30 days back and 10 videos for initial sync
         background_tasks.add_task(
             sync_service.sync_channel,
             channel_id,
             user_id,
             30,
-            100
+            10
         )
         
         return ChannelResponse(**channel_data)
