@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
-import { channelsApi } from '@/lib/api';
+import { channelsApi, subscriptionApi } from '@/lib/api';
 import { useChannels } from '@/contexts/channels-context';
 import { Channel } from '@/lib/types';
 import { AppSidebar, MainContent } from '@/components/layout/app-sidebar';
@@ -26,6 +26,8 @@ import {
     Loader2,
     Trash2,
     LogOut,
+    Sparkles,
+    Crown,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -37,9 +39,16 @@ export default function DashboardPage() {
     const [channelUrl, setChannelUrl] = useState('');
     const [syncLogs, setSyncLogs] = useState<{ _id: string; message: string; level: string; created_at: string }[]>([]);
     const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
+    const [subscription, setSubscription] = useState<{ plan: string; max_channels: number } | null>(null);
+    const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+    const [upgrading, setUpgrading] = useState(false);
 
     useEffect(() => {
         loadChannels();
+        // Fetch subscription status
+        subscriptionApi.getStatus()
+            .then(status => setSubscription({ plan: status.plan, max_channels: status.max_channels }))
+            .catch(e => console.error('Failed to fetch subscription:', e));
     }, [loadChannels]);
 
     // SSE via EventSource for real-time logs (replaces polling)
@@ -122,10 +131,16 @@ export default function DashboardPage() {
             setCurrentChannelId(newChannel.channel_id); // Start polling
             // Don't close dialog, show logs instead
             setChannelUrl('');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to add channel:', error);
-            alert('Failed to add channel. Please check the URL and try again.');
-            setAdding(false); // Only stop adding state on error
+            // Check if it's a channel limit error
+            if (error?.message?.includes('Channel limit') || error?.message?.includes('403')) {
+                setShowUpgradePrompt(true);
+                setAdding(false);
+            } else {
+                alert('Failed to add channel. Please check the URL and try again.');
+                setAdding(false);
+            }
         }
         // distinct from finally: we stay in "adding" mode visually or at least keep dialog open
     };
@@ -189,6 +204,34 @@ export default function DashboardPage() {
                                         />
                                     )}
                                     <span className="text-sm text-neutral-400">{session.user.name}</span>
+
+                                    {/* Subscription Badge */}
+                                    {subscription?.plan === 'pro' ? (
+                                        <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] uppercase tracking-widest bg-gradient-to-r from-amber-600 to-yellow-500 text-black font-semibold rounded">
+                                            <Crown size={10} /> Pro
+                                        </span>
+                                    ) : (
+                                        <button
+                                            onClick={async () => {
+                                                setUpgrading(true);
+                                                try {
+                                                    const { checkout_url } = await subscriptionApi.createCheckout();
+                                                    window.open(checkout_url, '_blank');
+                                                } catch (e) {
+                                                    console.error('Checkout failed:', e);
+                                                    alert('Failed to open checkout. Please try again.');
+                                                } finally {
+                                                    setUpgrading(false);
+                                                }
+                                            }}
+                                            disabled={upgrading}
+                                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] uppercase tracking-widest bg-gradient-to-r from-violet-600 to-purple-500 text-white hover:from-violet-500 hover:to-purple-400 transition-all rounded"
+                                        >
+                                            {upgrading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                                            Upgrade
+                                        </button>
+                                    )}
+
                                     <button
                                         onClick={() => signOut({ callbackUrl: '/' })}
                                         className="flex items-center gap-2 text-xs uppercase tracking-widest text-neutral-500 hover:text-[#e5e5e5] transition-colors"
@@ -275,6 +318,61 @@ export default function DashboardPage() {
                                                 </Button>
                                             </div>
                                         )}
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+
+                            {/* Upgrade Prompt Dialog */}
+                            <Dialog open={showUpgradePrompt} onOpenChange={setShowUpgradePrompt}>
+                                <DialogContent className="bg-[#0f0f0f] border-neutral-800 sm:max-w-[450px]">
+                                    <DialogHeader>
+                                        <DialogTitle className="font-serif text-xl text-[#e5e5e5] flex items-center gap-2">
+                                            <Crown className="text-yellow-500" size={24} />
+                                            Upgrade to Pro
+                                        </DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4 pt-4">
+                                        <p className="text-neutral-400">
+                                            You've reached your free channel limit ({subscription?.max_channels || 1} channel).
+                                        </p>
+                                        <div className="bg-gradient-to-br from-violet-900/20 to-purple-900/20 border border-violet-800/30 p-4 rounded">
+                                            <h4 className="font-semibold text-[#e5e5e5] mb-2">Pro Plan - $5/month</h4>
+                                            <ul className="text-sm text-neutral-400 space-y-1">
+                                                <li className="flex items-center gap-2">
+                                                    <Sparkles size={12} className="text-purple-400" /> Up to 5 YouTube channels
+                                                </li>
+                                                <li className="flex items-center gap-2">
+                                                    <Sparkles size={12} className="text-purple-400" /> Unlimited video analysis
+                                                </li>
+                                                <li className="flex items-center gap-2">
+                                                    <Sparkles size={12} className="text-purple-400" /> AI-powered insights
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <Button
+                                            onClick={async () => {
+                                                setUpgrading(true);
+                                                try {
+                                                    const { checkout_url } = await subscriptionApi.createCheckout();
+                                                    window.open(checkout_url, '_blank');
+                                                    setShowUpgradePrompt(false);
+                                                } catch (e) {
+                                                    console.error('Checkout failed:', e);
+                                                    alert('Failed to open checkout. Please try again.');
+                                                } finally {
+                                                    setUpgrading(false);
+                                                }
+                                            }}
+                                            disabled={upgrading}
+                                            className="w-full bg-gradient-to-r from-violet-600 to-purple-500 text-white hover:from-violet-500 hover:to-purple-400"
+                                        >
+                                            {upgrading ? (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Sparkles className="mr-2 h-4 w-4" />
+                                            )}
+                                            Upgrade Now
+                                        </Button>
                                     </div>
                                 </DialogContent>
                             </Dialog>
