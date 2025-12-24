@@ -3,6 +3,7 @@ Local analysis service using VADER for sentiment and spaCy + patterns for taggin
 No API calls required - runs 100% locally.
 """
 import re
+import asyncio
 from typing import Dict, Any, List
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
@@ -110,11 +111,15 @@ class LocalAnalysisService:
             'tags': tags
         }
     
-    def analyze_batch(self, comments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def analyze_batch(self, comments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        Analyze a batch of comments.
-        Much faster than API calls - processes thousands per second.
+        Analyze a batch of comments asynchronously using a thread pool.
         """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self._analyze_batch_sync, comments)
+
+    def _analyze_batch_sync(self, comments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Synchronous version of batch analysis to run in thread pool."""
         results = []
         
         for comment in comments:

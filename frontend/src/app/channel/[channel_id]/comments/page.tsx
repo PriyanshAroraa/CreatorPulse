@@ -28,6 +28,7 @@ import {
     Loader2,
     X,
     ArrowLeft,
+    Video,
 } from 'lucide-react';
 
 export default function CommentsPage() {
@@ -271,6 +272,17 @@ export default function CommentsPage() {
                                                     <p className="text-[10px] uppercase tracking-wider text-neutral-600">
                                                         {formatDate(comment.published_at)}
                                                     </p>
+                                                    {comment.video_title && (
+                                                        <a
+                                                            href={`https://www.youtube.com/watch?v=${comment.video_id}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-1.5 mt-1 text-[10px] text-neutral-500 hover:text-neutral-300 transition-colors"
+                                                        >
+                                                            <Video className="h-3 w-3" />
+                                                            <span className="truncate max-w-[200px]">{comment.video_title}</span>
+                                                        </a>
+                                                    )}
                                                 </div>
 
                                                 <div className="flex items-center gap-2">

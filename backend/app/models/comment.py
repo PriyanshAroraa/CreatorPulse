@@ -32,6 +32,7 @@ class CommentInDB(CommentBase):
 class CommentResponse(CommentInDB):
     """Response model for comment."""
     id: Optional[str] = Field(None, alias="_id")
+    video_title: Optional[str] = None  # Populated from video lookup
     
     class Config:
         populate_by_name = True

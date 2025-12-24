@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { channelsApi } from '@/lib/api';
+import { useChannels } from '@/contexts/channels-context';
 import { Channel } from '@/lib/types';
 import { AppSidebar, MainContent } from '@/components/layout/app-sidebar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,42 +30,112 @@ import {
 
 export default function DashboardPage() {
     const { data: session } = useSession();
-    const [channels, setChannels] = useState<Channel[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Use cached channels from context
+    const { channels, isLoading: loading, loadChannels, addChannel, removeChannel } = useChannels();
     const [adding, setAdding] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [channelUrl, setChannelUrl] = useState('');
+    const [syncLogs, setSyncLogs] = useState<{ _id: string; message: string; level: string; created_at: string }[]>([]);
+    const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
 
     useEffect(() => {
         loadChannels();
-    }, []);
+    }, [loadChannels]);
 
-    const loadChannels = async () => {
-        try {
-            const data = await channelsApi.list();
-            setChannels(data);
-        } catch (error) {
-            console.error('Failed to load channels:', error);
-        } finally {
-            setLoading(false);
+    // SSE via EventSource for real-time logs (replaces polling)
+    useEffect(() => {
+        let eventSource: EventSource | null = null;
+
+        if (dialogOpen && currentChannelId) {
+            // Initial fetch of any missed logs (optional, but good for history)
+            const fetchHistory = async () => {
+                try {
+                    const logs = await channelsApi.getLogs(currentChannelId);
+                    setSyncLogs(logs);
+                } catch (e) {
+                    console.error("Failed to load log history");
+                }
+            };
+            fetchHistory();
+
+            // Connect to SSE stream
+            // Note: EventSource doesn't support headers natively, so we pass token in URL if needed, 
+            // but for now relying on cookie or open endpoint as per recent backend change.
+            const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/channels/${currentChannelId}/logs/stream`;
+
+            console.log("Connecting to SSE:", url);
+            eventSource = new EventSource(url);
+
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    // Add new log to state
+                    setSyncLogs(prev => [
+                        {
+                            _id: 'live-' + Date.now(), // Generate temp ID
+                            message: data.message,
+                            level: data.level,
+                            created_at: data.created_at
+                        },
+                        ...prev
+                    ]);
+
+                    // Check for completion message
+                    if (data.message.includes("Sync completed") || data.message.includes("completion:") || data.level === 'success') {
+                        // Force refresh channels to update stats
+                        loadChannels(true);
+                    }
+                } catch (e) {
+                    console.error("Error parsing SSE message:", e);
+                }
+            };
+
+            eventSource.onerror = (e) => {
+                console.error("SSE Error:", e);
+                eventSource?.close();
+            };
         }
-    };
+
+        return () => {
+            if (eventSource) {
+                console.log("Closing SSE connection");
+                eventSource.close();
+            }
+        };
+    }, [dialogOpen, currentChannelId, loadChannels]);
 
     const handleAddChannel = async () => {
         if (!channelUrl.trim()) return;
         setAdding(true);
+        // Show immediate feedback
+        setSyncLogs([{
+            _id: 'temp-1',
+            message: '🧠 Initializing neural link...',
+            level: 'info',
+            created_at: new Date().toISOString()
+        }]);
+        setCurrentChannelId(null);
+
         try {
             const newChannel = await channelsApi.add(channelUrl.trim());
-            setChannels((prev) => [...prev, newChannel]);
+            addChannel(newChannel);
+            setCurrentChannelId(newChannel.channel_id); // Start polling
+            // Don't close dialog, show logs instead
             setChannelUrl('');
-            setDialogOpen(false);
         } catch (error) {
             console.error('Failed to add channel:', error);
             alert('Failed to add channel. Please check the URL and try again.');
-        } finally {
-            setAdding(false);
+            setAdding(false); // Only stop adding state on error
         }
+        // distinct from finally: we stay in "adding" mode visually or at least keep dialog open
     };
+
+    const handleCloseDialog = () => {
+        setDialogOpen(false);
+        setAdding(false);
+        setCurrentChannelId(null);
+        setSyncLogs([]);
+    }
 
     const handleDeleteChannel = async (channelId: string, e: React.MouseEvent) => {
         e.preventDefault();
@@ -72,9 +143,13 @@ export default function DashboardPage() {
         if (!confirm('Are you sure you want to delete this channel?')) return;
         try {
             await channelsApi.delete(channelId);
-            setChannels((prev) => prev.filter((c) => c.channel_id !== channelId));
+            removeChannel(channelId);
         } catch (error) {
             console.error('Failed to delete channel:', error);
+            // If 404, remove it anyway as it's gone from backend
+            if (error instanceof Error && error.message.includes("404")) {
+                removeChannel(channelId);
+            }
         }
     };
 
@@ -123,42 +198,83 @@ export default function DashboardPage() {
                                 </div>
                             )}
 
-                            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                            <Dialog open={dialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
                                 <DialogTrigger asChild>
-                                    <button className="flex items-center gap-2 text-xs uppercase tracking-widest text-neutral-500 hover:text-[#e5e5e5] transition-colors">
+                                    <button onClick={() => setDialogOpen(true)} className="flex items-center gap-2 text-xs uppercase tracking-widest text-neutral-500 hover:text-[#e5e5e5] transition-colors">
                                         <Plus size={14} /> Add Channel
                                     </button>
                                 </DialogTrigger>
-                                <DialogContent className="bg-[#0f0f0f] border-neutral-800">
+                                <DialogContent className="bg-[#0f0f0f] border-neutral-800 sm:max-w-[500px]">
                                     <DialogHeader>
                                         <DialogTitle className="font-serif text-xl text-[#e5e5e5]">Add YouTube Channel</DialogTitle>
                                     </DialogHeader>
                                     <div className="space-y-4 pt-4">
-                                        <div>
-                                            <label className="text-[10px] uppercase tracking-widest text-neutral-600">
-                                                Channel URL or ID
-                                            </label>
-                                            <Input
-                                                placeholder="https://youtube.com/@channelname"
-                                                value={channelUrl}
-                                                onChange={(e) => setChannelUrl(e.target.value)}
-                                                className="mt-2 bg-[#0f0f0f] border-neutral-800 text-[#e5e5e5] placeholder:text-neutral-600"
-                                            />
-                                        </div>
-                                        <Button
-                                            onClick={handleAddChannel}
-                                            disabled={adding || !channelUrl.trim()}
-                                            className="w-full bg-[#e5e5e5] text-[#0f0f0f] hover:bg-white"
-                                        >
-                                            {adding ? (
-                                                <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Adding...
-                                                </>
-                                            ) : (
-                                                'Add Channel'
-                                            )}
-                                        </Button>
+                                        {!currentChannelId ? (
+                                            <>
+                                                <div>
+                                                    <label className="text-[10px] uppercase tracking-widest text-neutral-600">
+                                                        Channel URL or ID
+                                                    </label>
+                                                    <Input
+                                                        placeholder="https://youtube.com/@channelname"
+                                                        value={channelUrl}
+                                                        onChange={(e) => setChannelUrl(e.target.value)}
+                                                        className="mt-2 bg-[#0f0f0f] border-neutral-800 text-[#e5e5e5] placeholder:text-neutral-600"
+                                                    />
+                                                </div>
+                                                <Button
+                                                    onClick={handleAddChannel}
+                                                    disabled={adding || !channelUrl.trim()}
+                                                    className="w-full bg-[#e5e5e5] text-[#0f0f0f] hover:bg-white"
+                                                >
+                                                    {adding ? (
+                                                        <>
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            Adding...
+                                                        </>
+                                                    ) : (
+                                                        'Add Channel'
+                                                    )}
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="text-sm font-medium text-[#e5e5e5] flex items-center gap-2">
+                                                        <Loader2 className="h-4 w-4 animate-spin text-green-500" />
+                                                        <span className="animate-pulse">Neural Sync Active...</span>
+                                                    </h3>
+                                                </div>
+
+                                                <div className="bg-black border border-green-900/30 p-4 h-64 overflow-y-auto font-mono text-[11px] space-y-1 rounded-md shadow-[0_0_15px_rgba(0,255,0,0.05)]">
+                                                    {syncLogs.length === 0 && <p className="text-green-900 animate-pulse">_initializing_uplink...</p>}
+                                                    {syncLogs.map((log) => (
+                                                        <div key={log._id} className="flex gap-3 font-mono opacity-90 hover:opacity-100 transition-opacity">
+                                                            <span className="text-neutral-600 shrink-0 select-none">
+                                                                {new Date(log.created_at).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                            </span>
+                                                            <span className={
+                                                                log.level === 'error' ? 'text-red-500' :
+                                                                    log.level === 'success' ? 'text-green-400 font-bold' :
+                                                                        log.level === 'warning' ? 'text-yellow-500' :
+                                                                            'text-green-500/80'
+                                                            }>
+                                                                <span className="mr-2 opacity-50">{'>'}</span>
+                                                                {log.message}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    <div className="animate-pulse text-green-500/50 mt-2">_</div>
+                                                </div>
+
+                                                <Button
+                                                    onClick={handleCloseDialog}
+                                                    className="w-full border border-neutral-800 bg-transparent text-[#e5e5e5] hover:bg-neutral-900 hover:text-white transition-colors"
+                                                >
+                                                    Close & View Dashboard
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
                                 </DialogContent>
                             </Dialog>
@@ -195,65 +311,96 @@ export default function DashboardPage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="grid gap-0 md:grid-cols-2 lg:grid-cols-3 border border-neutral-800">
-                            {channels.map((channel, index) => (
-                                <Link key={channel.channel_id} href={`/channel/${channel.channel_id}`}>
-                                    <div
-                                        className={`relative p-6 hover:bg-white/[0.02] transition-colors cursor-pointer
-                                            ${index % 3 !== 2 ? 'lg:border-r border-neutral-800' : ''}
-                                            ${index % 2 === 0 ? 'md:border-r lg:border-r-0 border-neutral-800' : 'md:border-r-0'}
-                                            ${index < channels.length - (channels.length % 3 || 3) ? 'border-b border-neutral-800' : ''}
-                                        `}
-                                    >
-                                        {index === 0 && <GridCorner corner="top-left" />}
-                                        {(index === 2 || (channels.length < 3 && index === channels.length - 1)) && <GridCorner corner="top-right" />}
-
-                                        <div className="flex items-start gap-4">
-                                            <img
-                                                src={channel.thumbnail_url}
-                                                alt={channel.name}
-                                                className="h-12 w-12 border border-neutral-800"
-                                            />
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="font-serif text-lg text-[#e5e5e5] truncate">{channel.name}</h3>
-                                                <p className="text-[10px] uppercase tracking-widest text-neutral-600 mt-1">
-                                                    {formatNumber(channel.subscriber_count ?? 0)} subscribers
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={(e) => handleDeleteChannel(channel.channel_id, e)}
-                                                className="p-2 text-neutral-600 hover:text-red-400 transition-colors"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
-
-                                        <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-neutral-800">
-                                            <div className="text-center">
-                                                <MessageSquare className="h-4 w-4 mx-auto text-neutral-600" />
-                                                <p className="font-serif text-lg text-[#e5e5e5] mt-1">
-                                                    {formatNumber(channel.total_comments || 0)}
-                                                </p>
-                                                <p className="text-[10px] uppercase tracking-wider text-neutral-600">Comments</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <TrendingUp className="h-4 w-4 mx-auto text-neutral-600" />
-                                                <p className="font-serif text-lg text-[#e5e5e5] mt-1">
-                                                    {channel.total_videos_analyzed || 0}
-                                                </p>
-                                                <p className="text-[10px] uppercase tracking-wider text-neutral-600">Analyzed</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <Users className="h-4 w-4 mx-auto text-neutral-600" />
-                                                <p className="font-serif text-lg text-[#e5e5e5] mt-1">
-                                                    {formatNumber(channel.video_count || 0)}
-                                                </p>
-                                                <p className="text-[10px] uppercase tracking-wider text-neutral-600">Videos</p>
-                                            </div>
-                                        </div>
+                        <div className="space-y-6">
+                            {/* Welcome / Instructions Banner */}
+                            <div className="relative border border-neutral-800 p-6">
+                                <GridCorner corner="top-left" />
+                                <GridCorner corner="top-right" />
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h2 className="font-serif text-xl text-[#e5e5e5] mb-1">Your Channels</h2>
+                                        <p className="text-sm text-neutral-500">
+                                            Click on any channel below to view detailed analytics, comments, and AI insights.
+                                        </p>
                                     </div>
-                                </Link>
-                            ))}
+                                    <Button
+                                        onClick={() => setDialogOpen(true)}
+                                        className="bg-[#e5e5e5] text-[#0f0f0f] hover:bg-white"
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Add Channel
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Channel Cards */}
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {channels.map((channel) => (
+                                    <Link key={channel.channel_id} href={`/channel/${channel.channel_id}`}>
+                                        <div className="group relative border border-neutral-800 p-6 hover:border-neutral-600 hover:bg-white/[0.03] transition-all cursor-pointer">
+                                            <GridCorner corner="top-left" />
+                                            <GridCorner corner="top-right" />
+                                            <GridCorner corner="bottom-left" />
+                                            <GridCorner corner="bottom-right" />
+
+                                            {/* Channel Header */}
+                                            <div className="flex items-start gap-4">
+                                                <img
+                                                    src={channel.thumbnail_url}
+                                                    alt={channel.name}
+                                                    className="h-14 w-14 border border-neutral-800 group-hover:border-neutral-600 transition-colors"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-serif text-lg text-[#e5e5e5] truncate group-hover:text-white transition-colors">
+                                                        {channel.name}
+                                                    </h3>
+                                                    <p className="text-[10px] uppercase tracking-widest text-neutral-600 mt-1">
+                                                        {formatNumber(channel.subscriber_count ?? 0)} subscribers
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => handleDeleteChannel(channel.channel_id, e)}
+                                                    className="p-2 text-neutral-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                                                    title="Delete channel"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+
+                                            {/* Stats */}
+                                            <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-neutral-800 group-hover:border-neutral-700 transition-colors">
+                                                <div className="text-center">
+                                                    <MessageSquare className="h-4 w-4 mx-auto text-neutral-600" />
+                                                    <p className="font-serif text-lg text-[#e5e5e5] mt-1">
+                                                        {formatNumber(channel.total_comments || 0)}
+                                                    </p>
+                                                    <p className="text-[10px] uppercase tracking-wider text-neutral-600">Comments</p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <TrendingUp className="h-4 w-4 mx-auto text-neutral-600" />
+                                                    <p className="font-serif text-lg text-[#e5e5e5] mt-1">
+                                                        {channel.total_videos_analyzed || 0}
+                                                    </p>
+                                                    <p className="text-[10px] uppercase tracking-wider text-neutral-600">Analyzed</p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <Users className="h-4 w-4 mx-auto text-neutral-600" />
+                                                    <p className="font-serif text-lg text-[#e5e5e5] mt-1">
+                                                        {formatNumber(channel.video_count || 0)}
+                                                    </p>
+                                                    <p className="text-[10px] uppercase tracking-wider text-neutral-600">Videos</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Click hint - appears on hover */}
+                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-neutral-900/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                <span className="text-xs uppercase tracking-widest text-neutral-400">View Analytics</span>
+                                                <TrendingUp className="h-3 w-3 text-neutral-400" />
+                                            </div>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>

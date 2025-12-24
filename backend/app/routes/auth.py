@@ -37,10 +37,14 @@ async def get_current_user(
         user_data = await db.users.find_one({"google_id": user_id})
         
         if user_data:
+            # Convert ObjectId to str for Pydantic compatibility
+            if "_id" in user_data:
+                user_data["_id"] = str(user_data["_id"])
             return User(**user_data)
         return None
         
-    except JWTError:
+    except (JWTError, Exception) as e:
+        print(f"Auth Error: {e}")
         return None
 
 

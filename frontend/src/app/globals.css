@@ -164,3 +164,44 @@
   background-color: white;
   color: black;
 }
+
+/* Hide horizontal scrollbar globally */
+html, body {
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar - minimal dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f0f0f;
+  border-left: 1px solid #262626;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #525252;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #404040 #0f0f0f;
+}
+
+/* Hide scrollbar on elements that shouldn't have visible scrollbars */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

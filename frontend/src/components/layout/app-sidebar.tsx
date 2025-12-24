@@ -1,11 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { GridCorner } from '@/components/ui/grid-corner';
+import { useChannels } from '@/contexts/channels-context';
+import { Channel } from '@/lib/types';
 import {
     Tooltip,
     TooltipContent,
@@ -18,6 +20,14 @@ import {
     SheetTrigger,
 } from '@/components/ui/sheet';
 import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
     LayoutDashboard,
     MessageSquare,
     BarChart3,
@@ -28,6 +38,8 @@ import {
     ChevronRight,
     Menu,
     Plus,
+    ChevronsUpDown,
+    Check,
 } from 'lucide-react';
 
 // Sidebar context - exported for use in pages
@@ -94,6 +106,24 @@ interface AppSidebarProps {
 export function AppSidebar({ channelId }: AppSidebarProps) {
     const { isCollapsed, setIsCollapsed } = useSidebar();
     const pathname = usePathname();
+    const router = useRouter();
+
+    // Use cached channels from context instead of local API call
+    const { channels, loadChannels } = useChannels();
+    const [currentChannel, setCurrentChannel] = useState<Channel | null>(null);
+
+    useEffect(() => {
+        // Load channels only once on mount (cached)
+        loadChannels();
+    }, [loadChannels]);
+
+    useEffect(() => {
+        // Update current channel when channelId or channels change
+        if (channelId && channels.length > 0) {
+            const current = channels.find(c => c.channel_id === channelId);
+            if (current) setCurrentChannel(current);
+        }
+    }, [channelId, channels]);
 
     const mainNavItems: NavItem[] = [
         {
@@ -136,6 +166,12 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
 
     const isActive = (href: string) => {
         if (href === '/dashboard') return pathname === '/dashboard';
+
+        // Strictly match channel root
+        if (channelId && href === `/channel/${channelId}`) {
+            return pathname === href;
+        }
+
         return pathname === href || pathname.startsWith(href + '/');
     };
 
@@ -190,20 +226,95 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
                     isCollapsed ? 'w-16' : 'w-64'
                 )}
             >
-                {/* Logo Section */}
+                {/* Logo / Dropdown Section */}
                 <div className={cn(
                     'relative flex h-16 items-center border-b border-neutral-800 px-4',
-                    isCollapsed ? 'justify-center' : 'gap-3'
+                    isCollapsed ? 'justify-center' : ''
                 )}>
                     <GridCorner corner="top-left" />
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-neutral-700">
-                        <Plus className="h-4 w-4 text-neutral-400" />
-                    </div>
-                    {!isCollapsed && (
-                        <div className="flex flex-col">
-                            <span className="font-serif text-lg text-[#e5e5e5]">CreatorPulse</span>
-                            <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">Analytics Platform</span>
+
+                    {isCollapsed ? (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-neutral-700">
+                            {currentChannel?.thumbnail_url ? (
+                                <img src={currentChannel.thumbnail_url} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                                <Plus className="h-4 w-4 text-neutral-400" />
+                            )}
                         </div>
+                    ) : (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full justify-between px-2 hover:bg-white/[0.02] h-auto py-2"
+                                >
+                                    <div className="flex items-center gap-3 overflow-hidden text-left">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-neutral-700 overflow-hidden">
+                                            {currentChannel?.thumbnail_url ? (
+                                                <img src={currentChannel.thumbnail_url} alt="" className="h-full w-full object-cover" />
+                                            ) : (
+                                                <Plus className="h-4 w-4 text-neutral-400" />
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col truncate">
+                                            <span className="font-serif text-base text-[#e5e5e5] truncate leading-none mb-1">
+                                                {currentChannel ? currentChannel.name : 'CreatorPulse'}
+                                            </span>
+                                            <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                                                {currentChannel ? 'Channel' : 'Platform'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-56 bg-[#0f0f0f] border-neutral-800 text-[#e5e5e5]">
+                                <DropdownMenuLabel className="text-xs uppercase tracking-widest text-neutral-500">
+                                    Switch Channel
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator className="bg-neutral-800" />
+                                <DropdownMenuItem
+                                    className="cursor-pointer focus:bg-white/[0.05] focus:text-[#e5e5e5]"
+                                    onClick={() => router.push('/dashboard')}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-6 w-6 border border-neutral-700 flex items-center justify-center">
+                                            <LayoutDashboard className="h-3 w-3" />
+                                        </div>
+                                        <span>All Channels</span>
+                                    </div>
+                                    {!currentChannel && <Check className="ml-auto h-4 w-4" />}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="bg-neutral-800" />
+                                {channels.map((channel) => (
+                                    <DropdownMenuItem
+                                        key={channel.channel_id}
+                                        className="cursor-pointer focus:bg-white/[0.05] focus:text-[#e5e5e5]"
+                                        onClick={() => router.push(`/channel/${channel.channel_id}`)}
+                                    >
+                                        <div className="flex items-center gap-2 w-full">
+                                            <img
+                                                src={channel.thumbnail_url}
+                                                alt=""
+                                                className="h-6 w-6 border border-neutral-700 object-cover"
+                                            />
+                                            <span className="truncate">{channel.name}</span>
+                                            {currentChannel?.channel_id === channel.channel_id && (
+                                                <Check className="ml-auto h-4 w-4 shrink-0" />
+                                            )}
+                                        </div>
+                                    </DropdownMenuItem>
+                                ))}
+                                <DropdownMenuSeparator className="bg-neutral-800" />
+                                <DropdownMenuItem
+                                    className="cursor-pointer focus:bg-white/[0.05] focus:text-[#e5e5e5]"
+                                    onClick={() => router.push('/dashboard')}
+                                >
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add Channel
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     )}
                 </div>
 
@@ -224,13 +335,6 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
                     {/* Channel Nav */}
                     {channelNavItems.length > 0 && (
                         <>
-                            {!isCollapsed && (
-                                <div className="mt-6 mb-2 px-4">
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-600">
-                                        Channel
-                                    </p>
-                                </div>
-                            )}
                             {isCollapsed && <div className="my-4 border-t border-neutral-800" />}
                             {channelNavItems.map((item) => (
                                 <NavLink key={item.href} item={item} />

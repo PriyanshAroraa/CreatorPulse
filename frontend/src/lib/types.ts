@@ -39,6 +39,7 @@ export interface Comment {
     id?: string;
     comment_id: string;
     video_id: string;
+    video_title?: string;  // From video lookup
     channel_id: string;
     author_name: string;
     author_channel_id: string;

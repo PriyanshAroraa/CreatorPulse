@@ -221,10 +221,13 @@ export default function ChannelDashboard() {
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="h-1 overflow-hidden bg-neutral-800">
+                                    <div className="h-1.5 overflow-hidden bg-neutral-800 rounded-full">
                                         <div
-                                            className="h-full bg-neutral-400 transition-all"
-                                            style={{ width: `${sentimentData.percentages.positive}%` }}
+                                            className="h-full rounded-full transition-all"
+                                            style={{
+                                                width: `${sentimentData.percentages.positive}%`,
+                                                background: 'linear-gradient(90deg, #134e4a, #14b8a6)'
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -244,10 +247,13 @@ export default function ChannelDashboard() {
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="h-1 overflow-hidden bg-neutral-800">
+                                    <div className="h-1.5 overflow-hidden bg-neutral-800 rounded-full">
                                         <div
-                                            className="h-full bg-neutral-600 transition-all"
-                                            style={{ width: `${sentimentData.percentages.neutral}%` }}
+                                            className="h-full rounded-full transition-all"
+                                            style={{
+                                                width: `${sentimentData.percentages.neutral}%`,
+                                                background: 'linear-gradient(90deg, #404040, #737373)'
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -267,10 +273,13 @@ export default function ChannelDashboard() {
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="h-1 overflow-hidden bg-neutral-800">
+                                    <div className="h-1.5 overflow-hidden bg-neutral-800 rounded-full">
                                         <div
-                                            className="h-full bg-neutral-500 transition-all"
-                                            style={{ width: `${sentimentData.percentages.negative}%` }}
+                                            className="h-full rounded-full transition-all"
+                                            style={{
+                                                width: `${sentimentData.percentages.negative}%`,
+                                                background: 'linear-gradient(90deg, #4c1d24, #f43f5e)'
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -289,7 +298,13 @@ export default function ChannelDashboard() {
 
                             <div className="space-y-4">
                                 {topVideos.map((video, index) => (
-                                    <div key={video.video_id} className="flex items-center gap-4 p-3 border border-neutral-800 hover:bg-white/[0.02] transition-colors">
+                                    <a
+                                        key={video.video_id}
+                                        href={`https://www.youtube.com/watch?v=${video.video_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-4 p-3 border border-neutral-800 hover:bg-white/[0.02] hover:border-neutral-700 transition-colors cursor-pointer group"
+                                    >
                                         <span className="font-serif text-lg text-neutral-600 w-6 text-center">
                                             {String(index + 1).padStart(2, '0')}
                                         </span>
@@ -297,16 +312,16 @@ export default function ChannelDashboard() {
                                             <img
                                                 src={video.thumbnail_url}
                                                 alt={video.title}
-                                                className="h-10 w-16 object-cover transition-all"
+                                                className="h-10 w-16 object-cover transition-all group-hover:scale-105"
                                             />
                                         )}
                                         <div className="flex-1 truncate">
-                                            <p className="truncate text-sm text-[#e5e5e5]">{video.title}</p>
+                                            <p className="truncate text-sm text-[#e5e5e5] group-hover:text-white transition-colors">{video.title}</p>
                                             <p className="text-xs text-neutral-600">
                                                 {video.comment_count.toLocaleString()} comments • {video.sentiment_ratio}% positive
                                             </p>
                                         </div>
-                                    </div>
+                                    </a>
                                 ))}
 
                                 {topVideos.length === 0 && (

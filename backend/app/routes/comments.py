@@ -68,8 +68,21 @@ async def list_channel_comments(
         "published_at", -1
     ).skip(skip).limit(limit).to_list(limit)
     
+    # Get unique video IDs from these comments
+    video_ids = list(set(c.get("video_id") for c in comments if c.get("video_id")))
+    
+    # Fetch video titles in bulk
+    video_query = {"video_id": {"$in": video_ids}}
+    if user:
+        video_query["user_id"] = user.google_id
+    
+    videos = await db.videos.find(video_query, {"video_id": 1, "title": 1}).to_list(None)
+    video_titles = {v["video_id"]: v.get("title", "Unknown Video") for v in videos}
+    
+    # Enrich comments with video titles
     for comment in comments:
         comment['_id'] = str(comment['_id'])
+        comment['video_title'] = video_titles.get(comment.get("video_id"), "Unknown Video")
     
     return CommentsPaginated(
         items=[CommentResponse(**c) for c in comments],

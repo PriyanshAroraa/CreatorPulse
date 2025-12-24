@@ -17,6 +17,8 @@ import {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const API_URL = API_BASE.endsWith('/api') ? API_BASE : `${API_BASE}/api`;
 
+import { getSession } from 'next-auth/react';
+
 async function fetchApi<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -25,6 +27,19 @@ async function fetchApi<T>(
         'Content-Type': 'application/json',
         ...(options.headers as Record<string, string>),
     };
+
+    // Add Authorization header if session exists
+    try {
+        const session = await getSession();
+        // The backendToken is attached to the session object in lib/auth.ts
+        const token = (session as any)?.backendToken;
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+    } catch (error) {
+        console.warn('Failed to get session for API call', error);
+    }
 
     const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
@@ -70,6 +85,14 @@ export const channelsApi = {
             total_comments: number;
             total_videos_analyzed: number;
         }>(`/channels/${channelId}/sync-status`),
+
+    getLogs: (channelId: string) =>
+        fetchApi<{
+            _id: string;
+            message: string;
+            level: string;
+            created_at: string;
+        }[]>(`/channels/${channelId}/logs`),
 };
 
 // Videos API

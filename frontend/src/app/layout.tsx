@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { NoiseOverlay } from "@/components/ui/noise-overlay";
 import { SidebarProvider } from "@/components/layout/app-sidebar";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { ChannelsProvider } from "@/contexts/channels-context";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,9 +33,11 @@ export default function RootLayout({
       >
         <AuthProvider>
           <NoiseOverlay />
-          <SidebarProvider>
-            {children}
-          </SidebarProvider>
+          <ChannelsProvider>
+            <SidebarProvider>
+              {children}
+            </SidebarProvider>
+          </ChannelsProvider>
         </AuthProvider>
       </body>
     </html>
