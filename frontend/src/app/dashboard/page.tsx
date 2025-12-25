@@ -194,53 +194,6 @@ export default function DashboardPage() {
                         </div>
 
                         <div className="flex items-center gap-4">
-                            {session?.user && (
-                                <div className="flex items-center gap-3">
-                                    {session.user.image && (
-                                        <img
-                                            src={session.user.image}
-                                            alt={session.user.name || 'User'}
-                                            className="h-8 w-8 border border-neutral-800"
-                                        />
-                                    )}
-                                    <span className="text-sm text-neutral-400">{session.user.name}</span>
-
-                                    {/* Subscription Badge */}
-                                    {subscription?.plan === 'pro' ? (
-                                        <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] uppercase tracking-widest bg-gradient-to-r from-amber-600 to-yellow-500 text-black font-semibold rounded">
-                                            <Crown size={10} /> Pro
-                                        </span>
-                                    ) : (
-                                        <button
-                                            onClick={async () => {
-                                                setUpgrading(true);
-                                                try {
-                                                    const { checkout_url } = await subscriptionApi.createCheckout(session?.user?.email || '');
-                                                    window.open(checkout_url, '_blank');
-                                                } catch (e) {
-                                                    console.error('Checkout failed:', e);
-                                                    alert('Failed to open checkout. Please try again.');
-                                                } finally {
-                                                    setUpgrading(false);
-                                                }
-                                            }}
-                                            disabled={upgrading}
-                                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] uppercase tracking-widest border border-neutral-700 text-neutral-400 hover:text-[#e5e5e5] hover:border-neutral-600 transition-all"
-                                        >
-                                            {upgrading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
-                                            Upgrade
-                                        </button>
-                                    )}
-
-                                    <button
-                                        onClick={() => signOut({ callbackUrl: '/' })}
-                                        className="flex items-center gap-2 text-xs uppercase tracking-widest text-neutral-500 hover:text-[#e5e5e5] transition-colors"
-                                    >
-                                        <LogOut size={14} />
-                                    </button>
-                                </div>
-                            )}
-
                             <Dialog open={dialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
                                 <DialogTrigger asChild>
                                     <button onClick={() => setDialogOpen(true)} className="flex items-center gap-2 text-xs uppercase tracking-widest text-neutral-500 hover:text-[#e5e5e5] transition-colors">

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { GridCorner } from '@/components/ui/grid-corner';
 import { useChannels } from '@/contexts/channels-context';
 import { Channel } from '@/lib/types';
+import { subscriptionApi } from '@/lib/api';
 import {
     Tooltip,
     TooltipContent,
@@ -49,6 +50,7 @@ import {
     LogOut,
     Crown,
     User,
+    Loader2,
 } from 'lucide-react';
 
 // Sidebar context - exported for use in pages
@@ -117,6 +119,7 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
     const pathname = usePathname();
     const router = useRouter();
     const { data: session } = useSession();
+    const [upgrading, setUpgrading] = useState(false);
 
     // Use cached channels from context instead of local API call
     const { channels, loadChannels } = useChannels();
@@ -473,10 +476,22 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
                                         variant="ghost"
                                         size="sm"
                                         className="w-full justify-start gap-2 text-neutral-400 hover:text-[#e5e5e5] hover:bg-white/[0.02]"
-                                        onClick={() => router.push('/dashboard')}
+                                        disabled={upgrading}
+                                        onClick={async () => {
+                                            setUpgrading(true);
+                                            try {
+                                                const { checkout_url } = await subscriptionApi.createCheckout(session?.user?.email || '');
+                                                window.open(checkout_url, '_blank');
+                                            } catch (e) {
+                                                console.error('Checkout failed:', e);
+                                                alert('Failed to open checkout. Please try again.');
+                                            } finally {
+                                                setUpgrading(false);
+                                            }
+                                        }}
                                     >
-                                        <Crown className="h-4 w-4" />
-                                        Upgrade to Pro
+                                        {upgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crown className="h-4 w-4" />}
+                                        {upgrading ? 'Loading...' : 'Upgrade to Pro'}
                                     </Button>
 
                                     <div className="border-t border-neutral-800 my-1" />
