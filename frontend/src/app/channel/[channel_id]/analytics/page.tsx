@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { analyticsApi, channelsApi } from '@/lib/api';
-import { Channel, SentimentBreakdown, SentimentTrend, TopVideo } from '@/lib/types';
+import { useChannel, useSentiment, useTrends, useTopVideos, useTags } from '@/hooks/use-cached-data';
 import { GridCorner } from '@/components/ui/grid-corner';
 import {
     Select,
@@ -27,42 +26,18 @@ import {
 export default function AnalyticsPage() {
     const params = useParams();
     const channelId = params.channel_id as string;
-
-    const [channel, setChannel] = useState<Channel | null>(null);
-    const [sentiment, setSentiment] = useState<SentimentBreakdown | null>(null);
-    const [trends, setTrends] = useState<SentimentTrend[]>([]);
-    const [topVideos, setTopVideos] = useState<TopVideo[]>([]);
-    const [tagBreakdown, setTagBreakdown] = useState<Record<string, number>>({});
     const [days, setDays] = useState('30');
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        loadData();
-    }, [channelId, days]);
+    // SWR hooks for cached data fetching - instant on subsequent visits
+    const { data: channel, isLoading: channelLoading } = useChannel(channelId);
+    const { data: sentiment, isLoading: sentimentLoading } = useSentiment(channelId);
+    const { data: trends = [], isLoading: trendsLoading } = useTrends(channelId, parseInt(days));
+    const { data: topVideos = [], isLoading: videosLoading } = useTopVideos(channelId, 10);
+    const { data: tagBreakdown = {}, isLoading: tagsLoading } = useTags(channelId);
 
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const [channelData, sentimentData, trendsData, videosData, tagsData] = await Promise.all([
-                channelsApi.get(channelId),
-                analyticsApi.getSentiment(channelId),
-                analyticsApi.getTrends(channelId, parseInt(days)),
-                analyticsApi.getTopVideos(channelId, 10),
-                analyticsApi.getTags(channelId),
-            ]);
-            setChannel(channelData);
-            setSentiment(sentimentData);
-            setTrends(trendsData);
-            setTopVideos(videosData);
-            setTagBreakdown(tagsData);
-        } catch (error) {
-            console.error('Failed to load analytics:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const loading = channelLoading || sentimentLoading || trendsLoading || videosLoading || tagsLoading;
 
-    if (loading) {
+    if (loading && !channel) {
         return (
             <div className="flex h-screen items-center justify-center bg-[#0f0f0f]">
                 <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />

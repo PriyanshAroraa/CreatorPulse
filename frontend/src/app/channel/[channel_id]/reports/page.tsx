@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { reportsApi, channelsApi } from '@/lib/api';
-import { Report, Channel } from '@/lib/types';
+import { reportsApi } from '@/lib/api';
+import { useChannel } from '@/hooks/use-cached-data';
+import { Report } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GridCorner } from '@/components/ui/grid-corner';
@@ -32,7 +33,10 @@ export default function ReportsPage() {
     const params = useParams();
     const channelId = params.channel_id as string;
 
-    const [channel, setChannel] = useState<Channel | null>(null);
+    // SWR for channel data (cached)
+    const { data: channel } = useChannel(channelId);
+
+    // Local state for reports (dynamic with CRUD)
     const [reports, setReports] = useState<Report[]>([]);
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
@@ -44,7 +48,7 @@ export default function ReportsPage() {
     const [title, setTitle] = useState('');
 
     useEffect(() => {
-        loadData();
+        loadReports();
         // Set default dates
         const today = new Date();
         const thirtyDaysAgo = new Date(today);
@@ -54,13 +58,9 @@ export default function ReportsPage() {
         setDateFrom(thirtyDaysAgo.toISOString().split('T')[0]);
     }, [channelId]);
 
-    const loadData = async () => {
+    const loadReports = async () => {
         try {
-            const [channelData, reportsData] = await Promise.all([
-                channelsApi.get(channelId),
-                reportsApi.list(channelId),
-            ]);
-            setChannel(channelData);
+            const reportsData = await reportsApi.list(channelId);
             setReports(reportsData);
         } catch (error) {
             console.error('Failed to load reports:', error);

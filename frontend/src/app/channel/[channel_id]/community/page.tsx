@@ -1,10 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { communityApi, channelsApi } from '@/lib/api';
-import { CommunityStats, Commenter, Channel } from '@/lib/types';
+import { useChannel, useCommunityStats, useTopCommenters, useStreaks } from '@/hooks/use-cached-data';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { GridCorner } from '@/components/ui/grid-corner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,36 +22,15 @@ export default function CommunityPage() {
     const params = useParams();
     const channelId = params.channel_id as string;
 
-    const [channel, setChannel] = useState<Channel | null>(null);
-    const [stats, setStats] = useState<CommunityStats | null>(null);
-    const [topCommenters, setTopCommenters] = useState<Commenter[]>([]);
-    const [streaks, setStreaks] = useState<Commenter[]>([]);
-    const [loading, setLoading] = useState(true);
+    // SWR hooks for cached data fetching - instant on subsequent visits
+    const { data: channel, isLoading: channelLoading } = useChannel(channelId);
+    const { data: stats, isLoading: statsLoading } = useCommunityStats(channelId);
+    const { data: topCommenters = [], isLoading: topLoading } = useTopCommenters(channelId, 20);
+    const { data: streaks = [], isLoading: streaksLoading } = useStreaks(channelId, 20);
 
-    useEffect(() => {
-        loadData();
-    }, [channelId]);
+    const loading = channelLoading || statsLoading || topLoading || streaksLoading;
 
-    const loadData = async () => {
-        try {
-            const [channelData, statsData, topData, streaksData] = await Promise.all([
-                channelsApi.get(channelId),
-                communityApi.getStats(channelId),
-                communityApi.getTopCommenters(channelId, 20),
-                communityApi.getStreaks(channelId, 20),
-            ]);
-            setChannel(channelData);
-            setStats(statsData);
-            setTopCommenters(topData);
-            setStreaks(streaksData);
-        } catch (error) {
-            console.error('Failed to load community data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (loading) {
+    if (loading && !channel) {
         return (
             <div className="flex h-screen items-center justify-center bg-[#0f0f0f]">
                 <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />

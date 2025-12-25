@@ -3,8 +3,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { chatApi, channelsApi } from '@/lib/api';
-import { ChatMessage, Channel } from '@/lib/types';
+import { chatApi } from '@/lib/api';
+import { useChannel } from '@/hooks/use-cached-data';
+import { ChatMessage } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,7 +17,10 @@ export default function ChatPage() {
     const params = useParams();
     const channelId = params.channel_id as string;
 
-    const [channel, setChannel] = useState<Channel | null>(null);
+    // SWR for channel data (cached)
+    const { data: channel } = useChannel(channelId);
+
+    // Local state for chat messages (dynamic/interactive)
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -24,7 +28,7 @@ export default function ChatPage() {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        loadData();
+        loadChatHistory();
     }, [channelId]);
 
     useEffect(() => {
@@ -33,13 +37,9 @@ export default function ChatPage() {
         }
     }, [messages]);
 
-    const loadData = async () => {
+    const loadChatHistory = async () => {
         try {
-            const [channelData, historyData] = await Promise.all([
-                channelsApi.get(channelId),
-                chatApi.getHistory(channelId),
-            ]);
-            setChannel(channelData);
+            const historyData = await chatApi.getHistory(channelId);
             setMessages(historyData);
         } catch (error) {
             console.error('Failed to load chat:', error);
