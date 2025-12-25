@@ -108,10 +108,13 @@ export default function AnalyticsPage() {
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="h-1 overflow-hidden bg-neutral-800">
+                                    <div className="h-2 overflow-hidden bg-neutral-800 rounded-full">
                                         <div
-                                            className="h-full bg-neutral-400 transition-all"
-                                            style={{ width: `${sentiment.percentages.positive}%` }}
+                                            className="h-full rounded-full transition-all"
+                                            style={{
+                                                width: `${sentiment.percentages.positive}%`,
+                                                background: 'linear-gradient(90deg, #06b6d4, #22d3ee)'
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -131,10 +134,13 @@ export default function AnalyticsPage() {
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="h-1 overflow-hidden bg-neutral-800">
+                                    <div className="h-2 overflow-hidden bg-neutral-800 rounded-full">
                                         <div
-                                            className="h-full bg-neutral-600 transition-all"
-                                            style={{ width: `${sentiment.percentages.neutral}%` }}
+                                            className="h-full rounded-full transition-all"
+                                            style={{
+                                                width: `${sentiment.percentages.neutral}%`,
+                                                background: 'linear-gradient(90deg, #525252, #737373)'
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -154,10 +160,13 @@ export default function AnalyticsPage() {
                                             </span>
                                         </div>
                                     </div>
-                                    <div className="h-1 overflow-hidden bg-neutral-800">
+                                    <div className="h-2 overflow-hidden bg-neutral-800 rounded-full">
                                         <div
-                                            className="h-full bg-neutral-500 transition-all"
-                                            style={{ width: `${sentiment.percentages.negative}%` }}
+                                            className="h-full rounded-full transition-all"
+                                            style={{
+                                                width: `${sentiment.percentages.negative}%`,
+                                                background: 'linear-gradient(90deg, #ef4444, #f87171)'
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -187,11 +196,12 @@ export default function AnalyticsPage() {
                                             {tag.replace('_', ' ')}
                                         </span>
                                         <div className="flex-1">
-                                            <div className="h-1 overflow-hidden bg-neutral-800">
+                                            <div className="h-2 overflow-hidden bg-neutral-800 rounded-full">
                                                 <div
-                                                    className="h-full bg-neutral-500 transition-all"
+                                                    className="h-full rounded-full transition-all"
                                                     style={{
                                                         width: `${(count / Math.max(...Object.values(tagBreakdown))) * 100}%`,
+                                                        background: 'linear-gradient(90deg, #525252, #737373)'
                                                     }}
                                                 />
                                             </div>
@@ -296,7 +306,7 @@ export default function AnalyticsPage() {
                                         <stop offset="100%" stopColor="#22d3ee" />
                                     </linearGradient>
                                     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                                        <feGaussianBlur stdDeviation="2" result="blur" />
+                                        <feGaussianBlur stdDeviation="1" result="blur" />
                                         <feMerge>
                                             <feMergeNode in="blur" />
                                             <feMergeNode in="SourceGraphic" />
