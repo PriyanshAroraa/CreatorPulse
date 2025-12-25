@@ -36,7 +36,7 @@ app.add_middleware(
         settings.frontend_url, 
         "http://localhost:3000", 
         "http://localhost:3001",
-        "https://creatorpulse-yt.vercel.app"
+        "https://creatorpulse-mu.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
