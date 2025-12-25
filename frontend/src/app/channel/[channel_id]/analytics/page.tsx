@@ -27,6 +27,7 @@ export default function AnalyticsPage() {
     const params = useParams();
     const channelId = params.channel_id as string;
     const [days, setDays] = useState('30');
+    const [hoveredPoint, setHoveredPoint] = useState<{ day: { date: string; total: number; positive?: number; negative?: number; neutral?: number }; x: number; y: number } | null>(null);
 
     // SWR hooks for cached data fetching - instant on subsequent visits
     const { data: channel, isLoading: channelLoading } = useChannel(channelId);
@@ -221,14 +222,14 @@ export default function AnalyticsPage() {
                     </div>
 
                     {trends.length > 0 ? (
-                        <div className="h-64 relative">
+                        <div className="h-64 relative" onMouseLeave={() => setHoveredPoint(null)}>
                             <svg className="w-full h-full" viewBox="0 0 800 200" preserveAspectRatio="none">
                                 {/* Grid lines */}
                                 <line x1="0" y1="50" x2="800" y2="50" stroke="#262626" strokeWidth="1" strokeDasharray="4" />
                                 <line x1="0" y1="100" x2="800" y2="100" stroke="#262626" strokeWidth="1" strokeDasharray="4" />
                                 <line x1="0" y1="150" x2="800" y2="150" stroke="#262626" strokeWidth="1" strokeDasharray="4" />
 
-                                {/* Area fill */}
+                                {/* Area fill with vibrant gradient */}
                                 <path
                                     d={`M0,200 ${trends.map((day, i) => {
                                         const x = (i / (trends.length - 1)) * 800;
@@ -238,7 +239,7 @@ export default function AnalyticsPage() {
                                     fill="url(#areaGradient)"
                                 />
 
-                                {/* Line */}
+                                {/* Line with glow effect */}
                                 <path
                                     d={`M${trends.map((day, i) => {
                                         const x = (i / (trends.length - 1)) * 800;
@@ -246,41 +247,94 @@ export default function AnalyticsPage() {
                                         return `${x},${y}`;
                                     }).join(' L')}`}
                                     fill="none"
-                                    stroke="#737373"
-                                    strokeWidth="2"
+                                    stroke="url(#lineGradient)"
+                                    strokeWidth="3"
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
+                                    filter="url(#glow)"
                                 />
 
                                 {/* Data points */}
                                 {trends.map((day, i) => {
                                     const x = (i / (trends.length - 1)) * 800;
                                     const y = 200 - (maxTrendValue > 0 ? (day.total / maxTrendValue) * 180 : 0);
+                                    const isHovered = hoveredPoint?.day.date === day.date;
                                     return (
-                                        <g key={day.date} className="group cursor-pointer">
-                                            <circle cx={x} cy={y} r="12" fill="transparent" />
-                                            <circle cx={x} cy={y} r="3" fill="#737373" />
+                                        <g
+                                            key={day.date}
+                                            className="cursor-pointer"
+                                            onMouseEnter={() => setHoveredPoint({ day, x, y })}
+                                        >
+                                            <circle cx={x} cy={y} r="16" fill="transparent" />
                                             <circle
-                                                cx={x} cy={y} r="6"
-                                                fill="transparent" stroke="#737373" strokeWidth="1"
-                                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                                cx={x} cy={y} r={isHovered ? 6 : 4}
+                                                fill={isHovered ? "#22d3ee" : "#06b6d4"}
+                                                className="transition-all duration-150"
                                             />
-                                            <title>{day.date}: {day.total} comments</title>
+                                            {isHovered && (
+                                                <circle
+                                                    cx={x} cy={y} r="10"
+                                                    fill="transparent"
+                                                    stroke="#22d3ee"
+                                                    strokeWidth="2"
+                                                    strokeOpacity="0.5"
+                                                />
+                                            )}
                                         </g>
                                     );
                                 })}
 
                                 <defs>
                                     <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#737373" stopOpacity="0.2" />
-                                        <stop offset="100%" stopColor="#737373" stopOpacity="0.02" />
+                                        <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.3" />
+                                        <stop offset="50%" stopColor="#06b6d4" stopOpacity="0.1" />
+                                        <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
                                     </linearGradient>
+                                    <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                                        <stop offset="0%" stopColor="#22d3ee" />
+                                        <stop offset="50%" stopColor="#06b6d4" />
+                                        <stop offset="100%" stopColor="#22d3ee" />
+                                    </linearGradient>
+                                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                                        <feGaussianBlur stdDeviation="2" result="blur" />
+                                        <feMerge>
+                                            <feMergeNode in="blur" />
+                                            <feMergeNode in="SourceGraphic" />
+                                        </feMerge>
+                                    </filter>
                                 </defs>
                             </svg>
 
+                            {/* Custom Tooltip */}
+                            {hoveredPoint && (
+                                <div
+                                    className="absolute pointer-events-none z-10 bg-[#1a1a1a] border border-neutral-700 px-4 py-3 shadow-xl"
+                                    style={{
+                                        left: `${(hoveredPoint.x / 800) * 100}%`,
+                                        top: `${(hoveredPoint.y / 200) * 100}%`,
+                                        transform: `translate(${hoveredPoint.x > 600 ? '-100%' : hoveredPoint.x < 200 ? '0%' : '-50%'}, -120%)`,
+                                    }}
+                                >
+                                    <div className="text-[10px] uppercase tracking-widest text-neutral-500 mb-1">
+                                        {hoveredPoint.day.date}
+                                    </div>
+                                    <div className="font-serif text-xl text-[#e5e5e5]">
+                                        {hoveredPoint.day.total.toLocaleString()}
+                                        <span className="text-xs text-neutral-500 ml-2">comments</span>
+                                    </div>
+                                    {hoveredPoint.day.positive !== undefined && (
+                                        <div className="flex gap-3 mt-2 text-xs">
+                                            <span className="text-cyan-400">+{hoveredPoint.day.positive}</span>
+                                            <span className="text-neutral-500">{hoveredPoint.day.neutral}</span>
+                                            <span className="text-neutral-400">-{hoveredPoint.day.negative}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="mt-4 flex justify-between text-[10px] uppercase tracking-widest text-neutral-600">
                                 <span>{trends[0]?.date}</span>
-                                <span className="text-neutral-400">Max: {maxTrendValue} comments</span>
+                                <span className="text-cyan-500">Peak: {maxTrendValue.toLocaleString()} comments</span>
                                 <span>{trends[trends.length - 1]?.date}</span>
                             </div>
                         </div>
