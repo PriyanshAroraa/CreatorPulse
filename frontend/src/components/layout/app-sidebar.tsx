@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { GridCorner } from '@/components/ui/grid-corner';
@@ -28,6 +29,11 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
     LayoutDashboard,
     MessageSquare,
     BarChart3,
@@ -40,6 +46,9 @@ import {
     Plus,
     ChevronsUpDown,
     Check,
+    LogOut,
+    Crown,
+    User,
 } from 'lucide-react';
 
 // Sidebar context - exported for use in pages
@@ -107,6 +116,7 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
     const { isCollapsed, setIsCollapsed } = useSidebar();
     const pathname = usePathname();
     const router = useRouter();
+    const { data: session } = useSession();
 
     // Use cached channels from context instead of local API call
     const { channels, loadChannels } = useChannels();
@@ -226,10 +236,10 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
                     isCollapsed ? 'w-16' : 'w-64'
                 )}
             >
-                {/* Logo / Dropdown Section */}
+                {/* Logo / Dropdown Section + Collapse Button */}
                 <div className={cn(
                     'relative flex h-16 items-center border-b border-neutral-800 px-4',
-                    isCollapsed ? 'justify-center' : ''
+                    isCollapsed ? 'justify-center' : 'justify-between'
                 )}>
                     <GridCorner corner="top-left" />
 
@@ -242,79 +252,117 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
                             )}
                         </div>
                     ) : (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                        <>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        className="flex-1 justify-between px-2 hover:bg-white/[0.02] h-auto py-2"
+                                    >
+                                        <div className="flex items-center gap-3 overflow-hidden text-left">
+                                            <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-neutral-700 overflow-hidden">
+                                                {currentChannel?.thumbnail_url ? (
+                                                    <img src={currentChannel.thumbnail_url} alt="" className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <Plus className="h-4 w-4 text-neutral-400" />
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col truncate">
+                                                <span className="font-serif text-base text-[#e5e5e5] truncate leading-none mb-1">
+                                                    {currentChannel ? currentChannel.name : 'CreatorPulse'}
+                                                </span>
+                                                <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                                                    {currentChannel ? 'Channel' : 'Platform'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-56 bg-[#0f0f0f] border-neutral-800 text-[#e5e5e5]">
+                                    <DropdownMenuLabel className="text-xs uppercase tracking-widest text-neutral-500">
+                                        Switch Channel
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator className="bg-neutral-800" />
+                                    <DropdownMenuItem
+                                        className="cursor-pointer focus:bg-white/[0.05] focus:text-[#e5e5e5]"
+                                        onClick={() => router.push('/dashboard')}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-6 w-6 border border-neutral-700 flex items-center justify-center">
+                                                <LayoutDashboard className="h-3 w-3" />
+                                            </div>
+                                            <span>All Channels</span>
+                                        </div>
+                                        {!currentChannel && <Check className="ml-auto h-4 w-4" />}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator className="bg-neutral-800" />
+                                    {channels.map((channel) => (
+                                        <DropdownMenuItem
+                                            key={channel.channel_id}
+                                            className="cursor-pointer focus:bg-white/[0.05] focus:text-[#e5e5e5]"
+                                            onClick={() => router.push(`/channel/${channel.channel_id}`)}
+                                        >
+                                            <div className="flex items-center gap-2 w-full">
+                                                <img
+                                                    src={channel.thumbnail_url}
+                                                    alt=""
+                                                    className="h-6 w-6 border border-neutral-700 object-cover"
+                                                />
+                                                <span className="truncate">{channel.name}</span>
+                                                {currentChannel?.channel_id === channel.channel_id && (
+                                                    <Check className="ml-auto h-4 w-4 shrink-0" />
+                                                )}
+                                            </div>
+                                        </DropdownMenuItem>
+                                    ))}
+                                    <DropdownMenuSeparator className="bg-neutral-800" />
+                                    <DropdownMenuItem
+                                        className="cursor-pointer focus:bg-white/[0.05] focus:text-[#e5e5e5]"
+                                        onClick={() => router.push('/dashboard')}
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Add Channel
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            {/* Collapse button in header */}
+                            <Tooltip delayDuration={0}>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setIsCollapsed(!isCollapsed)}
+                                        className="ml-2 h-8 w-8 shrink-0 text-neutral-500 hover:text-[#e5e5e5] hover:bg-white/[0.02]"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="bg-[#0f0f0f] text-[#e5e5e5] border-neutral-800">
+                                    <p>Collapse sidebar</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </>
+                    )}
+
+                    {/* Expand button when collapsed */}
+                    {isCollapsed && (
+                        <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild>
                                 <Button
                                     variant="ghost"
-                                    className="w-full justify-between px-2 hover:bg-white/[0.02] h-auto py-2"
+                                    size="icon"
+                                    onClick={() => setIsCollapsed(false)}
+                                    className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-[#0f0f0f] border border-neutral-700 text-neutral-500 hover:text-[#e5e5e5] hover:bg-neutral-800"
                                 >
-                                    <div className="flex items-center gap-3 overflow-hidden text-left">
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-neutral-700 overflow-hidden">
-                                            {currentChannel?.thumbnail_url ? (
-                                                <img src={currentChannel.thumbnail_url} alt="" className="h-full w-full object-cover" />
-                                            ) : (
-                                                <Plus className="h-4 w-4 text-neutral-400" />
-                                            )}
-                                        </div>
-                                        <div className="flex flex-col truncate">
-                                            <span className="font-serif text-base text-[#e5e5e5] truncate leading-none mb-1">
-                                                {currentChannel ? currentChannel.name : 'CreatorPulse'}
-                                            </span>
-                                            <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
-                                                {currentChannel ? 'Channel' : 'Platform'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    <ChevronRight className="h-3 w-3" />
                                 </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-56 bg-[#0f0f0f] border-neutral-800 text-[#e5e5e5]">
-                                <DropdownMenuLabel className="text-xs uppercase tracking-widest text-neutral-500">
-                                    Switch Channel
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator className="bg-neutral-800" />
-                                <DropdownMenuItem
-                                    className="cursor-pointer focus:bg-white/[0.05] focus:text-[#e5e5e5]"
-                                    onClick={() => router.push('/dashboard')}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-6 w-6 border border-neutral-700 flex items-center justify-center">
-                                            <LayoutDashboard className="h-3 w-3" />
-                                        </div>
-                                        <span>All Channels</span>
-                                    </div>
-                                    {!currentChannel && <Check className="ml-auto h-4 w-4" />}
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator className="bg-neutral-800" />
-                                {channels.map((channel) => (
-                                    <DropdownMenuItem
-                                        key={channel.channel_id}
-                                        className="cursor-pointer focus:bg-white/[0.05] focus:text-[#e5e5e5]"
-                                        onClick={() => router.push(`/channel/${channel.channel_id}`)}
-                                    >
-                                        <div className="flex items-center gap-2 w-full">
-                                            <img
-                                                src={channel.thumbnail_url}
-                                                alt=""
-                                                className="h-6 w-6 border border-neutral-700 object-cover"
-                                            />
-                                            <span className="truncate">{channel.name}</span>
-                                            {currentChannel?.channel_id === channel.channel_id && (
-                                                <Check className="ml-auto h-4 w-4 shrink-0" />
-                                            )}
-                                        </div>
-                                    </DropdownMenuItem>
-                                ))}
-                                <DropdownMenuSeparator className="bg-neutral-800" />
-                                <DropdownMenuItem
-                                    className="cursor-pointer focus:bg-white/[0.05] focus:text-[#e5e5e5]"
-                                    onClick={() => router.push('/dashboard')}
-                                >
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Add Channel
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="bg-[#0f0f0f] text-[#e5e5e5] border-neutral-800">
+                                <p>Expand sidebar</p>
+                            </TooltipContent>
+                        </Tooltip>
                     )}
                 </div>
 
@@ -343,33 +391,109 @@ export function AppSidebar({ channelId }: AppSidebarProps) {
                     )}
                 </nav>
 
-                {/* Version / Collapse Button */}
-                <div className="border-t border-neutral-800 p-3">
-                    {!isCollapsed && (
-                        <div className="mb-3 px-1">
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
-                                System v0.1
-                            </p>
-                        </div>
+                {/* Profile / Account Section - matches channel dropdown style */}
+                <div className={cn(
+                    'relative flex h-16 items-center border-t border-neutral-800 px-4',
+                    isCollapsed ? 'justify-center' : ''
+                )}>
+                    {isCollapsed ? (
+                        <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild>
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-neutral-700 overflow-hidden">
+                                    {session?.user?.image ? (
+                                        <img src={session.user.image} alt="" className="h-full w-full object-cover" />
+                                    ) : (
+                                        <div className="h-full w-full bg-neutral-800 flex items-center justify-center">
+                                            <User className="h-4 w-4 text-neutral-400" />
+                                        </div>
+                                    )}
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="bg-[#0f0f0f] text-[#e5e5e5] border-neutral-800">
+                                <p>{session?.user?.name || 'Account'}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    ) : (
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full justify-between px-2 hover:bg-white/[0.02] h-auto py-2"
+                                >
+                                    <div className="flex items-center gap-3 overflow-hidden text-left">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-neutral-700 overflow-hidden">
+                                            {session?.user?.image ? (
+                                                <img src={session.user.image} alt="" className="h-full w-full object-cover" />
+                                            ) : (
+                                                <div className="h-full w-full bg-neutral-800 flex items-center justify-center">
+                                                    <User className="h-4 w-4 text-neutral-400" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col truncate">
+                                            <span className="font-serif text-base text-[#e5e5e5] truncate leading-none mb-1">
+                                                {session?.user?.name || 'Account'}
+                                            </span>
+                                            <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-600">
+                                                Free Plan
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                                className="w-56 bg-[#0f0f0f] border-neutral-800 p-0"
+                                side="top"
+                                align="start"
+                            >
+                                <div className="p-3 border-b border-neutral-800">
+                                    <p className="text-xs uppercase tracking-widest text-neutral-500">
+                                        Account
+                                    </p>
+                                    <p className="text-sm text-[#e5e5e5] mt-1 truncate">
+                                        {session?.user?.email || 'Not signed in'}
+                                    </p>
+                                </div>
+
+                                <div className="p-2 space-y-1">
+                                    <div className="px-2 py-2 text-sm text-neutral-400">
+                                        <div className="flex items-center justify-between">
+                                            <span>Current Plan</span>
+                                            <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-neutral-800 text-neutral-400 rounded">
+                                                Free
+                                            </span>
+                                        </div>
+                                        <div className="text-[10px] text-neutral-500 mt-1">
+                                            1/1 channels used
+                                        </div>
+                                    </div>
+
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full justify-start gap-2 text-neutral-400 hover:text-[#e5e5e5] hover:bg-white/[0.02]"
+                                        onClick={() => router.push('/dashboard')}
+                                    >
+                                        <Crown className="h-4 w-4" />
+                                        Upgrade to Pro
+                                    </Button>
+
+                                    <div className="border-t border-neutral-800 my-1" />
+
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full justify-start gap-2 text-neutral-400 hover:text-[#e5e5e5] hover:bg-white/[0.02]"
+                                        onClick={() => router.push('/api/auth/signout')}
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                        Sign Out
+                                    </Button>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        className={cn(
-                            'w-full text-neutral-500 hover:text-[#e5e5e5] hover:bg-white/[0.02] border border-neutral-800',
-                            isCollapsed && 'px-2'
-                        )}
-                    >
-                        {isCollapsed ? (
-                            <ChevronRight className="h-4 w-4" />
-                        ) : (
-                            <>
-                                <ChevronLeft className="h-4 w-4 mr-2" />
-                                Collapse
-                            </>
-                        )}
-                    </Button>
                 </div>
             </aside>
         </TooltipProvider>

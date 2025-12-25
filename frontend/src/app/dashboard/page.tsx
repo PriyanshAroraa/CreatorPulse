@@ -225,7 +225,7 @@ export default function DashboardPage() {
                                                 }
                                             }}
                                             disabled={upgrading}
-                                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] uppercase tracking-widest bg-gradient-to-r from-violet-600 to-purple-500 text-white hover:from-violet-500 hover:to-purple-400 transition-all rounded"
+                                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] uppercase tracking-widest border border-neutral-700 text-neutral-400 hover:text-[#e5e5e5] hover:border-neutral-600 transition-all"
                                         >
                                             {upgrading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
                                             Upgrade
@@ -335,17 +335,17 @@ export default function DashboardPage() {
                                         <p className="text-neutral-400">
                                             You've reached your free channel limit ({subscription?.max_channels || 1} channel).
                                         </p>
-                                        <div className="bg-gradient-to-br from-violet-900/20 to-purple-900/20 border border-violet-800/30 p-4 rounded">
+                                        <div className="bg-neutral-900/50 border border-neutral-800 p-4">
                                             <h4 className="font-semibold text-[#e5e5e5] mb-2">Pro Plan - $5/month</h4>
                                             <ul className="text-sm text-neutral-400 space-y-1">
                                                 <li className="flex items-center gap-2">
-                                                    <Sparkles size={12} className="text-purple-400" /> Up to 5 YouTube channels
+                                                    <Sparkles size={12} className="text-neutral-500" /> Up to 5 YouTube channels
                                                 </li>
                                                 <li className="flex items-center gap-2">
-                                                    <Sparkles size={12} className="text-purple-400" /> Unlimited video analysis
+                                                    <Sparkles size={12} className="text-neutral-500" /> Unlimited video analysis
                                                 </li>
                                                 <li className="flex items-center gap-2">
-                                                    <Sparkles size={12} className="text-purple-400" /> AI-powered insights
+                                                    <Sparkles size={12} className="text-neutral-500" /> AI-powered insights
                                                 </li>
                                             </ul>
                                         </div>
@@ -364,7 +364,7 @@ export default function DashboardPage() {
                                                 }
                                             }}
                                             disabled={upgrading}
-                                            className="w-full bg-gradient-to-r from-violet-600 to-purple-500 text-white hover:from-violet-500 hover:to-purple-400"
+                                            className="w-full border border-neutral-700 bg-transparent text-[#e5e5e5] hover:bg-white/[0.02]"
                                         >
                                             {upgrading ? (
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
