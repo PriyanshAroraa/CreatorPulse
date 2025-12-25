@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { channelsApi, analyticsApi } from '@/lib/api';
-import { Channel, ChannelSummary, TopVideo } from '@/lib/types';
+import { channelsApi } from '@/lib/api';
+import { useChannel, useChannelSummary, useTopVideos } from '@/hooks/use-cached-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { GridCorner } from '@/components/ui/grid-corner';
@@ -26,36 +25,17 @@ export default function ChannelDashboard() {
     const params = useParams();
     const channelId = params.channel_id as string;
 
-    const [channel, setChannel] = useState<Channel | null>(null);
-    const [summary, setSummary] = useState<ChannelSummary | null>(null);
-    const [topVideos, setTopVideos] = useState<TopVideo[]>([]);
-    const [loading, setLoading] = useState(true);
+    // SWR hooks for cached data fetching - instant on subsequent visits
+    const { data: channel, isLoading: channelLoading, mutate: mutateChannel } = useChannel(channelId);
+    const { data: summary, isLoading: summaryLoading } = useChannelSummary(channelId);
+    const { data: topVideos = [], isLoading: videosLoading } = useTopVideos(channelId, 5);
 
-    useEffect(() => {
-        loadData();
-    }, [channelId]);
-
-    const loadData = async () => {
-        try {
-            const [channelData, summaryData, videosData] = await Promise.all([
-                channelsApi.get(channelId),
-                analyticsApi.getSummary(channelId),
-                analyticsApi.getTopVideos(channelId, 5),
-            ]);
-            setChannel(channelData);
-            setSummary(summaryData);
-            setTopVideos(videosData);
-        } catch (error) {
-            console.error('Failed to load dashboard:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const loading = channelLoading || summaryLoading || videosLoading;
 
     const handleSync = async () => {
         try {
             await channelsApi.sync(channelId);
-            setChannel((prev) => (prev ? { ...prev, sync_status: 'syncing' } : null));
+            mutateChannel(channel ? { ...channel, sync_status: 'syncing' } : undefined);
         } catch (error) {
             console.error('Failed to start sync:', error);
         }
