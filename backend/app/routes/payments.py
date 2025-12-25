@@ -154,7 +154,9 @@ async def create_checkout(request: Request, user: Optional[User] = Depends(get_c
     if not email:
         raise HTTPException(status_code=401, detail="Authentication required - please provide email")
     
-    # Return checkout URL with prefilled email
-    checkout_url = f"https://checkout.dodopayments.com/buy/{settings.dodo_product_id}?email={email}"
+    # Return checkout URL with prefilled email and redirect
+    redirect_url = "https://creatorpulse-mu.vercel.app/dashboard?payment=success"
+    from urllib.parse import quote
+    checkout_url = f"https://checkout.dodopayments.com/buy/{settings.dodo_product_id}?email={email}&redirect_url={quote(redirect_url, safe='')}"
     
     return {"checkout_url": checkout_url}
