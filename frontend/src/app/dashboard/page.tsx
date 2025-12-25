@@ -215,7 +215,7 @@ export default function DashboardPage() {
                                             onClick={async () => {
                                                 setUpgrading(true);
                                                 try {
-                                                    const { checkout_url } = await subscriptionApi.createCheckout();
+                                                    const { checkout_url } = await subscriptionApi.createCheckout(session?.user?.email || '');
                                                     window.open(checkout_url, '_blank');
                                                 } catch (e) {
                                                     console.error('Checkout failed:', e);
@@ -353,7 +353,7 @@ export default function DashboardPage() {
                                             onClick={async () => {
                                                 setUpgrading(true);
                                                 try {
-                                                    const { checkout_url } = await subscriptionApi.createCheckout();
+                                                    const { checkout_url } = await subscriptionApi.createCheckout(session?.user?.email || '');
                                                     window.open(checkout_url, '_blank');
                                                     setShowUpgradePrompt(false);
                                                 } catch (e) {

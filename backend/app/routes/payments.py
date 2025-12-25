@@ -131,19 +131,30 @@ async def get_subscription_status(user: Optional[User] = Depends(get_current_use
 
 
 @router.post("/checkout/create")
-async def create_checkout(user: Optional[User] = Depends(get_current_user)):
+async def create_checkout(request: Request, user: Optional[User] = Depends(get_current_user)):
     """Create a Dodo Payments checkout session."""
-    if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
     db = get_database()
-    user_data = await db.users.find_one({"google_id": user.google_id})
     
-    if not user_data:
-        raise HTTPException(status_code=404, detail="User not found")
+    email = None
+    
+    # Try to get email from authenticated user
+    if user:
+        user_data = await db.users.find_one({"google_id": user.google_id})
+        if user_data:
+            email = user_data.get('email', '')
+    
+    # Fallback: try to get email from request body
+    if not email:
+        try:
+            body = await request.json()
+            email = body.get('email', '')
+        except:
+            pass
+    
+    if not email:
+        raise HTTPException(status_code=401, detail="Authentication required - please provide email")
     
     # Return checkout URL with prefilled email
-    # Dodo hosted checkout URL format
-    checkout_url = f"https://checkout.dodopayments.com/buy/{settings.dodo_product_id}?email={user_data.get('email', '')}"
+    checkout_url = f"https://checkout.dodopayments.com/buy/{settings.dodo_product_id}?email={email}"
     
     return {"checkout_url": checkout_url}

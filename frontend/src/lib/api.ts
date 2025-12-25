@@ -288,8 +288,9 @@ export const subscriptionApi = {
             authenticated: boolean;
         }>('/webhooks/subscription/status'),
 
-    createCheckout: () =>
+    createCheckout: (email: string) =>
         fetchApi<{ checkout_url: string }>('/webhooks/checkout/create', {
             method: 'POST',
+            body: JSON.stringify({ email }),
         }),
 };
