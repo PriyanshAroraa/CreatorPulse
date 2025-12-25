@@ -190,25 +190,45 @@ export default function AnalyticsPage() {
                             {Object.entries(tagBreakdown)
                                 .sort((a, b) => b[1] - a[1])
                                 .slice(0, 8)
-                                .map(([tag, count]) => (
-                                    <div key={tag} className="flex items-center gap-3">
-                                        <span className="w-40 truncate text-sm text-neutral-400 capitalize">
-                                            {tag.replace('_', ' ')}
-                                        </span>
-                                        <div className="flex-1">
-                                            <div className="h-2 overflow-hidden bg-neutral-800 rounded-full">
-                                                <div
-                                                    className="h-full rounded-full transition-all"
-                                                    style={{
-                                                        width: `${(count / Math.max(...Object.values(tagBreakdown))) * 100}%`,
-                                                        background: 'linear-gradient(90deg, #525252, #737373)'
-                                                    }}
-                                                />
+                                .map(([tag, count], index) => {
+                                    // Different gradient colors for each tag
+                                    const tagColors: Record<string, string> = {
+                                        'viral_potential': 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+                                        'question': 'linear-gradient(90deg, #06b6d4, #22d3ee)',
+                                        'feedback': 'linear-gradient(90deg, #8b5cf6, #a78bfa)',
+                                        'urgent': 'linear-gradient(90deg, #ef4444, #f87171)',
+                                        'suggestion': 'linear-gradient(90deg, #10b981, #34d399)',
+                                        'collab_request': 'linear-gradient(90deg, #ec4899, #f472b6)',
+                                        'business': 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                                    };
+                                    const defaultColors = [
+                                        'linear-gradient(90deg, #06b6d4, #22d3ee)',
+                                        'linear-gradient(90deg, #8b5cf6, #a78bfa)',
+                                        'linear-gradient(90deg, #10b981, #34d399)',
+                                        'linear-gradient(90deg, #f59e0b, #fbbf24)',
+                                    ];
+                                    const gradient = tagColors[tag] || defaultColors[index % defaultColors.length];
+
+                                    return (
+                                        <div key={tag} className="flex items-center gap-3">
+                                            <span className="w-40 truncate text-sm text-neutral-400 capitalize">
+                                                {tag.replace('_', ' ')}
+                                            </span>
+                                            <div className="flex-1">
+                                                <div className="h-2 overflow-hidden bg-neutral-800 rounded-full">
+                                                    <div
+                                                        className="h-full rounded-full transition-all"
+                                                        style={{
+                                                            width: `${(count / Math.max(...Object.values(tagBreakdown))) * 100}%`,
+                                                            background: gradient
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
+                                            <span className="font-serif text-sm text-[#e5e5e5]">{count}</span>
                                         </div>
-                                        <span className="font-serif text-sm text-[#e5e5e5]">{count}</span>
-                                    </div>
-                                ))}
+                                    );
+                                })}
 
                             {Object.keys(tagBreakdown).length === 0 && (
                                 <p className="py-8 text-center text-neutral-600">

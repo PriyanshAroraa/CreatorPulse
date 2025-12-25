@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { channelsApi } from '@/lib/api';
-import { useChannel, useChannelSummary, useTopVideos } from '@/hooks/use-cached-data';
+import { useChannel, useChannelSummary, useTopVideos, useTags } from '@/hooks/use-cached-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { GridCorner } from '@/components/ui/grid-corner';
@@ -19,6 +19,9 @@ import {
     RefreshCw,
     ArrowLeft,
     ChevronRight,
+    Tag,
+    Sparkles,
+    Handshake,
 } from 'lucide-react';
 
 export default function ChannelDashboard() {
@@ -29,8 +32,9 @@ export default function ChannelDashboard() {
     const { data: channel, isLoading: channelLoading, mutate: mutateChannel } = useChannel(channelId);
     const { data: summary, isLoading: summaryLoading } = useChannelSummary(channelId);
     const { data: topVideos = [], isLoading: videosLoading } = useTopVideos(channelId, 5);
+    const { data: tagBreakdown = {}, isLoading: tagsLoading } = useTags(channelId);
 
-    const loading = channelLoading || summaryLoading || videosLoading;
+    const loading = channelLoading || summaryLoading || videosLoading || tagsLoading;
 
     const handleSync = async () => {
         try {
@@ -305,6 +309,101 @@ export default function ChannelDashboard() {
                                     No videos yet. Sync comments to see top videos.
                                 </p>
                             )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tags & Business Opportunities */}
+                <div className="mt-8 relative border border-neutral-800 p-8">
+                    <GridCorner corner="top-left" />
+                    <GridCorner corner="top-right" />
+                    <GridCorner corner="bottom-left" />
+                    <GridCorner corner="bottom-right" />
+
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-2">
+                            <Tag className="h-5 w-5 text-neutral-500" />
+                            <h3 className="font-serif text-xl text-[#e5e5e5]">Comment Tags & Opportunities</h3>
+                        </div>
+                        <Link href={`/channel/${channelId}/analytics`}>
+                            <button className="text-[10px] uppercase tracking-widest text-neutral-500 hover:text-[#e5e5e5] transition-colors flex items-center gap-1">
+                                View All <ChevronRight size={12} />
+                            </button>
+                        </Link>
+                    </div>
+
+                    <div className="grid gap-6 md:grid-cols-2">
+                        {/* Left: Tag Distribution */}
+                        <div className="space-y-3">
+                            {Object.entries(tagBreakdown)
+                                .sort((a, b) => b[1] - a[1])
+                                .slice(0, 5)
+                                .map(([tag, count], index) => {
+                                    const tagColors: Record<string, string> = {
+                                        'viral_potential': 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+                                        'question': 'linear-gradient(90deg, #06b6d4, #22d3ee)',
+                                        'feedback': 'linear-gradient(90deg, #8b5cf6, #a78bfa)',
+                                        'urgent': 'linear-gradient(90deg, #ef4444, #f87171)',
+                                        'suggestion': 'linear-gradient(90deg, #10b981, #34d399)',
+                                        'collab_request': 'linear-gradient(90deg, #ec4899, #f472b6)',
+                                        'business': 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                                    };
+                                    const defaultColors = [
+                                        'linear-gradient(90deg, #06b6d4, #22d3ee)',
+                                        'linear-gradient(90deg, #8b5cf6, #a78bfa)',
+                                        'linear-gradient(90deg, #10b981, #34d399)',
+                                        'linear-gradient(90deg, #f59e0b, #fbbf24)',
+                                    ];
+                                    const gradient = tagColors[tag] || defaultColors[index % defaultColors.length];
+
+                                    return (
+                                        <div key={tag} className="flex items-center gap-3">
+                                            <span className="w-32 truncate text-sm text-neutral-400 capitalize">
+                                                {tag.replace('_', ' ')}
+                                            </span>
+                                            <div className="flex-1">
+                                                <div className="h-2 overflow-hidden bg-neutral-800 rounded-full">
+                                                    <div
+                                                        className="h-full rounded-full transition-all"
+                                                        style={{
+                                                            width: `${(count / Math.max(...Object.values(tagBreakdown))) * 100}%`,
+                                                            background: gradient
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <span className="font-serif text-sm text-[#e5e5e5] w-12 text-right">{count}</span>
+                                        </div>
+                                    );
+                                })}
+                            {Object.keys(tagBreakdown).length === 0 && (
+                                <p className="text-neutral-600 text-sm">Sync comments to see tag analytics.</p>
+                            )}
+                        </div>
+
+                        {/* Right: Business Opportunities Highlight */}
+                        <div className="space-y-4">
+                            <div className="p-4 border border-neutral-800 hover:bg-white/[0.02] transition-colors">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Handshake className="h-4 w-4 text-pink-400" />
+                                    <span className="text-sm text-neutral-400">Collab Requests</span>
+                                </div>
+                                <p className="font-serif text-2xl text-[#e5e5e5]">
+                                    {tagBreakdown['collab_request'] || 0}
+                                </p>
+                                <p className="text-xs text-neutral-600 mt-1">Potential collaborations</p>
+                            </div>
+
+                            <div className="p-4 border border-neutral-800 hover:bg-white/[0.02] transition-colors">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Sparkles className="h-4 w-4 text-amber-400" />
+                                    <span className="text-sm text-neutral-400">Viral Potential</span>
+                                </div>
+                                <p className="font-serif text-2xl text-[#e5e5e5]">
+                                    {tagBreakdown['viral_potential'] || 0}
+                                </p>
+                                <p className="text-xs text-neutral-600 mt-1">Comments with high engagement potential</p>
+                            </div>
                         </div>
                     </div>
                 </div>
